@@ -1,0 +1,173 @@
+// Person detail page — every layer's view of a single individual.
+
+import { SAMPLE_PEOPLE, STATUS_DATING, STATUS_NETWORKING, PHYSICAL_FIELDS } from './data.js';
+import { scoreCandidate } from './engines/match.js';
+import { classify } from './engines/proximity.js';
+import { resolveView } from './engines/identity.js';
+import { progress, MANUAL_DELTAS } from './engines/rapport.js';
+import { relate, hobbyMeta, rankFor } from './engines/hobbies.js';
+import { store } from './state.js';
+import { $, $$, escapeHtml, initials, colorFor, pct, fmtRel, fmtMin } from './util.js';
+
+export function render(root, params) {
+  const id = params.id;
+  const p = SAMPLE_PEOPLE.find(x => x.id === id);
+  if (!p) {
+    root.innerHTML = `<div class="card p-6 text-center"><h1 class="font-display text-xl">Person not found</h1><a href="#/floor" class="btn mt-3">Back to floor</a></div>`;
+    return;
+  }
+  const me = store.profile;
+  const w  = store.world[p.id] || {};
+  const rapport = store.rapport[p.id] || { points:0, sharedSessions:0, manualNotes:[] };
+  const muted = !!store.muted[p.id];
+  const revealed = !!store.reveals[p.id];
+
+  const sc  = scoreCandidate(p, me.prefs);
+  const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted });
+  const view = resolveView(me, p, sc.pct, { reveals: store.reveals, theirReveal: revealed, muted });
+  const rel = relate(me.hobbies, p.hobbies);
+  const pr = progress(rapport.points || 0);
+  const status = (p.intent === 'networking' ? STATUS_NETWORKING : STATUS_DATING).find(s => s.key === p.status);
+
+  root.innerHTML = `
+    <section class="grid gap-6">
+      <a href="#/floor" class="text-xs text-slate-400 hover:text-iris-400">← Back to floor</a>
+
+      <div class="card p-5 grid sm:grid-cols-[auto_1fr_auto] items-center gap-4">
+        <span class="avatar w-20 h-20 text-xl" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">
+          ${view.shows === 'photo' || view.shows === 'reveal' ? initials(p.name) : (view.shows==='avatar' ? (p.alias||'').slice(0,2).toUpperCase() : '·')}
+        </span>
+        <div>
+          <h1 class="font-display text-2xl font-semibold">${view.shows==='photo'||view.shows==='reveal' ? escapeHtml(p.name) : '@'+escapeHtml(p.alias)}</h1>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${escapeHtml(cls.zone.label)} · ${(w.dist||0).toFixed(1)}m</span>
+            <span class="pill" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>
+            ${status ? `<span class="pill pill-iris">${escapeHtml(status.icon)} ${escapeHtml(status.label)}</span>` : ''}
+            <span class="pill" style="color:${pr.tier.color};border-color:${pr.tier.color}55">${escapeHtml(pr.tier.label)}</span>
+            ${rel.teacher ? `<span class="pill pill-sun">🎓 Teacher in ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
+            ${rel.student ? `<span class="pill pill-mint">📚 Student in ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <button class="btn btn-sm" id="toggle-mute">${muted?'Unmute':'Mute'}</button>
+          <button class="btn btn-sm ${revealed?'btn-rose':'btn-primary'}" id="toggle-reveal">${revealed?'Cancel reveal':'Flag for reveal'}</button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="card p-4 grid gap-3">
+          <h2 class="font-display font-semibold text-lg">Rapport</h2>
+          <div class="grid gap-1.5">
+            <div class="flex items-center justify-between text-sm">
+              <span class="rep-tier ${pr.tier.toneClass}"><span class="swatch"></span>${escapeHtml(pr.tier.label)}</span>
+              <span class="text-slate-500">${Math.round(rapport.points)} pts ${pr.next?` · ${Math.round(pr.into)}/${Math.round(pr.span)} → ${pr.next.label}`:''}</span>
+            </div>
+            <div class="bar rep tall"><i style="width:${(pr.progress*100).toFixed(0)}%;background:${pr.tier.color}"></i></div>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${MANUAL_DELTAS.map(d => `<button class="btn btn-sm ${d.delta>0?'btn-mint':'btn-rose'}" data-rate="${d.delta}">${d.delta>0?'+':''}${d.delta} · ${escapeHtml(d.label)}</button>`).join('')}
+          </div>
+          <div class="card-soft p-3 grid gap-2">
+            <div class="flex items-center justify-between text-sm">
+              <span>Shared sessions</span>
+              <span class="text-slate-400">${rapport.sharedSessions}</span>
+            </div>
+            <div class="flex gap-2 items-center">
+              <select id="shared-hobby" class="select w-auto text-sm">
+                ${(p.hobbies||[]).map(h => `<option value="${h.key}">${hobbyMeta(h.key)?.label||h.key}</option>`).join('')}
+              </select>
+              <input id="shared-min" type="number" min="5" max="240" value="30" class="input w-24 text-sm" />
+              <button id="shared-go" class="btn btn-sm">Log session</button>
+            </div>
+          </div>
+          <div class="grid gap-1">
+            <h3 class="text-xs text-slate-400">Recent rapport notes</h3>
+            ${(rapport.manualNotes||[]).slice(-6).reverse().map(n => `
+              <div class="card-soft p-2 text-xs flex items-center justify-between">
+                <span>${escapeHtml(n.note)}</span>
+                <span class="${n.delta>0?'text-mint-400':'text-rose-400'}">${n.delta>0?'+':''}${Math.round(n.delta)} · ${fmtRel(n.ts)}</span>
+              </div>`).join('') || '<div class="text-xs text-slate-500">No notes yet — proximity time will quietly accrue.</div>'}
+          </div>
+        </div>
+
+        <div class="card p-4 grid gap-3">
+          <h2 class="font-display font-semibold text-lg">Hobbies & skill ranks</h2>
+          <div class="grid gap-2">
+            ${(p.hobbies||[]).map(h => {
+              const meta = hobbyMeta(h.key) || {label:h.key, icon:'🔹'};
+              const rk = rankFor(h.skill);
+              const mine = me.hobbies.find(x => x.key === h.key);
+              const sharedNote = mine ? `you: ${rankFor(mine.skill).label} L${mine.skill}` : 'you don\'t have this';
+              return `
+                <div class="card-soft p-3 grid gap-1.5">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xl">${meta.icon}</span>
+                      <span class="font-medium">${escapeHtml(meta.label)}</span>
+                    </div>
+                    <span class="pill" style="color:${rk.color};border-color:${rk.color}55">${escapeHtml(rk.label)} · L${h.skill}</span>
+                  </div>
+                  <div class="bar skill"><i style="width:${h.skill}%"></i></div>
+                  <div class="text-[11px] text-slate-500">role: ${escapeHtml(h.role)} · ${sharedNote}</div>
+                </div>
+              `;
+            }).join('') || '<div class="text-sm text-slate-500">No hobbies on file.</div>'}
+          </div>
+        </div>
+
+        <div class="card p-4 grid gap-3 lg:col-span-2">
+          <h2 class="font-display font-semibold text-lg">Match dimensions</h2>
+          <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            ${sc.dimensions.map(d => `
+              <div class="card-soft p-3 grid gap-1.5">
+                <div class="flex items-center justify-between">
+                  <div class="font-medium text-sm">${escapeHtml(d.label)}</div>
+                  <div class="text-xs text-slate-500">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
+                </div>
+                <div class="text-[11px] text-slate-500">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
+                <div class="bar"><i style="width:${(d.score==null?0:d.score)*100}%"></i></div>
+              </div>`).join('')}
+          </div>
+          ${sc.blockedBy.length ? `<div class="text-xs text-rose-400">Filter blocked: ${sc.blockedBy.join(', ')}</div>` : ''}
+          ${sc.excludedHits.length ? `<div class="text-xs text-rose-400">Excluded hits: ${sc.excludedHits.join(', ')}</div>` : ''}
+        </div>
+
+        <div class="card p-4 grid gap-3">
+          <h2 class="font-display font-semibold text-lg">Proximity</h2>
+          <div class="grid gap-1.5 text-sm">
+            <div class="flex justify-between"><span>Distance</span><span class="text-slate-400">~${(w.dist||0).toFixed(1)}m</span></div>
+            <div class="flex justify-between"><span>Signal</span><span class="text-slate-400">${((w.signal||0)*100|0)}%</span></div>
+            <div class="flex justify-between"><span>Stability</span><span class="text-slate-400">${w.stable?'stable':'flickering'}</span></div>
+            <div class="flex justify-between"><span>Opt-in</span><span class="text-slate-400">${w.optIn?'yes':'no'}</span></div>
+            <div class="flex justify-between"><span>Zone</span><span style="color:${cls.zone.color}">${escapeHtml(cls.zone.label)}</span></div>
+          </div>
+        </div>
+
+        <div class="card p-4 grid gap-3">
+          <h2 class="font-display font-semibold text-lg">Identity & reveal</h2>
+          <div class="grid gap-1.5 text-sm">
+            <div class="flex justify-between"><span>Their default mode</span><span class="text-slate-400">${escapeHtml(p.visMode)}</span></div>
+            <div class="flex justify-between"><span>Your reveal flag</span><span class="text-slate-400">${revealed?'on':'off'}</span></div>
+            <div class="flex justify-between"><span>Match gate</span><span class="text-slate-400">${(me.visMatchGate*100).toFixed(0)}%</span></div>
+            <div class="flex justify-between"><span>What you currently see</span><span class="text-slate-300 font-medium">${escapeHtml(view.shows)}</span></div>
+          </div>
+          <p class="text-[11px] text-slate-500">${view.reasons.join(' · ') || '—'}</p>
+        </div>
+      </div>
+    </section>
+  `;
+
+  $('#toggle-mute', root).addEventListener('click', () => { store.toggleMute(p.id); render(root, params); });
+  $('#toggle-reveal', root).addEventListener('click', () => { store.toggleReveal(p.id); render(root, params); });
+  $$('button[data-rate]', root).forEach(b => b.addEventListener('click', () => {
+    store.addManualRapport(p.id, Number(b.dataset.rate), b.textContent.trim());
+    render(root, params);
+  }));
+  $('#shared-go', root).addEventListener('click', () => {
+    const hk = $('#shared-hobby', root).value;
+    const m = Number($('#shared-min', root).value);
+    if (!Number.isFinite(m) || m <= 0) return;
+    store.logSharedSession(p.id, hk, m);
+    render(root, params);
+  });
+}
