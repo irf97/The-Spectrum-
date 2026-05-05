@@ -22,14 +22,10 @@ function dotFor(p, me, world, muted, reveals) {
   const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted: !!muted[p.id] });
   if (cls.zone.key === 'outrange' || cls.zone.key === 'unknown') return '';
   const score = scoreCandidate(p, me.prefs);
-  // skip people my own status filters out
   const myStatus = me.intent === 'networking' ? me.status.networking : me.status.dating;
   if (myStatus === 'closed' || myStatus === 'offline' || myStatus === 'invisible') return '';
   if ((myStatus === 'selective' || myStatus === 'focused') && score.pct < 0.5) return '';
-
-  // identity reveal — what I see of them on the floor
   const view = resolveView(me, p, score.pct, { reveals, theirReveal: !!reveals[p.id], muted: muted[p.id] });
-  // position from world to floor px (assume world is -50..50 → 4%..96%)
   const left = ((w.x||0) + 50) / 100 * 92 + 4;
   const top  = ((w.y||0) + 50) / 100 * 92 + 4;
   const matchClass = score.bucket.key === 'ideal' ? 'match-ideal'
@@ -50,8 +46,7 @@ function dotFor(p, me, world, muted, reveals) {
 }
 
 function rings() {
-  // Visualize the proximity ring boundaries.
-  const sizes = [16, 36, 64, 92]; // % of floor diameter
+  const sizes = [16, 36, 64, 92];
   return sizes.map(s => `<span class="ring" style="width:${s}%;height:${s}%"></span>`).join('');
 }
 
@@ -70,7 +65,6 @@ function summaryStats(me, world, muted) {
 }
 
 function shortlist(me, world, muted, rapport, reveals) {
-  // Combined ranking: match% × proximity-score × rapport-multiplier × hobby-compat
   const myStatus = me.intent === 'networking' ? me.status.networking : me.status.dating;
   const arr = SAMPLE_PEOPLE.map(p => {
     const w = world[p.id] || {};
@@ -121,6 +115,11 @@ export function render(root) {
   if (unsubState) { unsubState(); unsubState = null; }
 
   function paint() {
+    if (!location.hash.startsWith('#/floor')) {
+      if (unsubTick)  { unsubTick(); unsubTick = null; }
+      if (unsubState) { unsubState(); unsubState = null; }
+      return;
+    }
     const me = store.profile;
     const stats = summaryStats(me, store.world, store.muted);
     const dots = SAMPLE_PEOPLE.map(p => dotFor(p, me, store.world, store.muted, store.reveals)).join('');
