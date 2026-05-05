@@ -113,7 +113,6 @@ export function render(root) {
     </section>
   `;
 
-  // wire interactions
   $('#toggle-optin', root).addEventListener('click', () => {
     store.setProfile({ optIn: !store.profile.optIn });
     render(root);
@@ -135,8 +134,11 @@ export function render(root) {
     });
   });
 
-  // Live updates: re-render the rows on each tick.
   function refreshRows() {
+    if (!location.hash.startsWith('#/proximity')) {
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+      return;
+    }
     const ws = store.world; const ms = store.muted;
     $('#rows', root).innerHTML = SAMPLE_PEOPLE.map(p => row(p, ws, ms)).join('');
     $$('a[data-id]', root).forEach(a => {
