@@ -46,16 +46,17 @@ export const MATCH_BUCKETS = [
   { key: 'unknown',  label: 'Unknown',  min: -1,   swatch:'#475569', tone:'rep-neutral',  copy: 'Not enough visible data to score.' },
 ];
 
-// ---------- Layer 3: Proximity zones -----------------------------------------
+// ---------- Layer 3: Proximity zones (10m world) ----------------------------
+// The Spectrum operates inside a single venue room; everything past 10m is filtered.
 
 export const PROX_ZONES = [
-  { key:'nearby',   label:'Nearby',   color:'#78f3d3', range:[0,8],     copy:'Within ~10m and directly reachable.' },
-  { key:'adjacent', label:'Adjacent', color:'#9b8cff', range:[8,18],    copy:'Just past your immediate group.' },
-  { key:'samezone', label:'SameZone', color:'#7b6cff', range:[18,32],   copy:'Same room or area.' },
-  { key:'passing',  label:'Passing',  color:'#ffd073', range:[32,46],   copy:'Brief / unstable presence.' },
-  { key:'hidden',   label:'Hidden',   color:'#94a3b8', range:[46,9999], copy:'Present but invisible to others.' },
+  { key:'reach',    label:'Reach',    color:'#78f3d3', range:[0,2],     copy:'Eye-contact range; same table.' },
+  { key:'nearby',   label:'Nearby',   color:'#9b8cff', range:[2,5],     copy:'Same booth or circle.' },
+  { key:'room',     label:'Room',     color:'#7b6cff', range:[5,10],    copy:'Same area of the venue.' },
+  { key:'passing',  label:'Passing',  color:'#ffd073', range:[],        copy:'Brief / unstable presence in the room.' },
+  { key:'hidden',   label:'Hidden',   color:'#94a3b8', range:[],        copy:'Present but invisible to others.' },
   { key:'muted',    label:'Muted',    color:'#475569', range:[],        copy:'Mutually muted by user choice.' },
-  { key:'outrange', label:'OutRange', color:'#334155', range:[],        copy:'Outside useful interaction range.' },
+  { key:'outrange', label:'OutRange', color:'#334155', range:[],        copy:'Outside the 10m bubble.' },
   { key:'unknown',  label:'Unknown',  color:'#1e293b', range:[],        copy:'Not enough signal to classify.' },
 ];
 
@@ -133,41 +134,41 @@ export const HOBBY_ROLES = [
   { key:'peers',      label:'Looking for peers',   icon:'🤝' },
 ];
 
-// ---------- Sample population ------------------------------------------------
+// ---------- Sample population (10m venue) -----------------------------------
 
 const PEOPLE_SEED = [
   { id:'p1',  name:'Mara Voss',     alias:'mv',       age:29, height:'170–180', body:'Athletic',  face:'Sharp',     hair:'Long',      style:'Smart-casual', grooming:'Clean',         intent:'dating',     status:'flirty',   visMode:'hybrid',
-    hobbies:[{key:'climbing',skill:64,role:'practicing'},{key:'piano',skill:32,role:'student'},{key:'photography',skill:78,role:'practicing'}], dist:6,  stable:true,  optIn:true,  signal:0.9 },
+    hobbies:[{key:'climbing',skill:64,role:'practicing'},{key:'piano',skill:32,role:'student'},{key:'photography',skill:78,role:'practicing'}], dist:1.6, stable:true,  optIn:true,  signal:0.9 },
   { id:'p2',  name:'Theo Park',     alias:'theo',     age:34, height:'180–190', body:'Slim',      face:'Symmetric', hair:'Short',     style:'Streetwear',   grooming:'Stubble',       intent:'networking', status:'open',     visMode:'photo',
-    hobbies:[{key:'coding',skill:88,role:'teacher'},{key:'chess',skill:55,role:'peers'},{key:'running',skill:48,role:'practicing'}], dist:11, stable:true,  optIn:true,  signal:0.7 },
+    hobbies:[{key:'coding',skill:88,role:'teacher'},{key:'chess',skill:55,role:'peers'},{key:'running',skill:48,role:'practicing'}], dist:3.2, stable:true,  optIn:true,  signal:0.7 },
   { id:'p3',  name:'Lena Akagi',    alias:'lk',       age:27, height:'160–170', body:'Curvy',     face:'Soft',      hair:'Curly',     style:'Bohemian',     grooming:'Polished',      intent:'dating',     status:'warm',     visMode:'avatar',
-    hobbies:[{key:'painting',skill:71,role:'peers'},{key:'yoga',skill:40,role:'practicing'},{key:'languages',skill:55,role:'teacher'}], dist:24, stable:true,  optIn:true,  signal:0.6 },
+    hobbies:[{key:'painting',skill:71,role:'peers'},{key:'yoga',skill:40,role:'practicing'},{key:'languages',skill:55,role:'teacher'}], dist:7.5, stable:true,  optIn:true,  signal:0.6 },
   { id:'p4',  name:'Jules Romero',  alias:'jules',    age:31, height:'170–180', body:'Athletic',  face:'Striking',  hair:'Shaved',    style:'Smart-casual', grooming:'Clean',         intent:'networking', status:'focused',  visMode:'glance',
-    hobbies:[{key:'design',skill:82,role:'peers'},{key:'cycling',skill:60,role:'practicing'},{key:'cooking',skill:35,role:'student'}], dist:19, stable:false, optIn:true,  signal:0.5 },
+    hobbies:[{key:'design',skill:82,role:'peers'},{key:'cycling',skill:60,role:'practicing'},{key:'cooking',skill:35,role:'student'}], dist:6.0, stable:false, optIn:true,  signal:0.5 },
   { id:'p5',  name:'Idris Cole',    alias:'idris',    age:38, height:'180–190', body:'Muscular',  face:'Sharp',     hair:'Short',     style:'Casual',       grooming:'Full beard',    intent:'dating',     status:'selective',visMode:'hybrid',
-    hobbies:[{key:'lifting',skill:74,role:'teacher'},{key:'guitar',skill:42,role:'peers'},{key:'investing',skill:69,role:'practicing'}], dist:33, stable:true,  optIn:true,  signal:0.6 },
+    hobbies:[{key:'lifting',skill:74,role:'teacher'},{key:'guitar',skill:42,role:'peers'},{key:'investing',skill:69,role:'practicing'}], dist:8.8, stable:true,  optIn:true,  signal:0.6 },
   { id:'p6',  name:'Soraya Mehta',  alias:'sora',     age:25, height:'160–170', body:'Slim',      face:'Expressive',hair:'Medium',    style:'Alt',          grooming:'Polished',      intent:'dating',     status:'flirty',   visMode:'reveal',
-    hobbies:[{key:'singing',skill:81,role:'peers'},{key:'guitar',skill:52,role:'practicing'},{key:'meditation',skill:30,role:'student'}], dist:14, stable:true,  optIn:true,  signal:0.85 },
+    hobbies:[{key:'singing',skill:81,role:'peers'},{key:'guitar',skill:52,role:'practicing'},{key:'meditation',skill:30,role:'student'}], dist:4.2, stable:true,  optIn:true,  signal:0.85 },
   { id:'p7',  name:'Ben Caruso',    alias:'benc',     age:42, height:'170–180', body:'Average',   face:'Soft',      hair:'Medium',    style:'Smart-casual', grooming:'Trimmed beard', intent:'networking', status:'curious',  visMode:'photo',
-    hobbies:[{key:'investing',skill:88,role:'teacher'},{key:'tennis',skill:62,role:'peers'},{key:'reading',skill:55,role:'practicing'}], dist:28, stable:true,  optIn:true,  signal:0.55 },
+    hobbies:[{key:'investing',skill:88,role:'teacher'},{key:'tennis',skill:62,role:'peers'},{key:'reading',skill:55,role:'practicing'}], dist:7.0, stable:true,  optIn:true,  signal:0.55 },
   { id:'p8',  name:'Hira Jalil',    alias:'hira',     age:26, height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Long',      style:'Sporty',       grooming:'Clean',         intent:'dating',     status:'open',     visMode:'photo',
-    hobbies:[{key:'running',skill:80,role:'peers'},{key:'climbing',skill:38,role:'student'},{key:'cooking',skill:60,role:'practicing'}], dist:9,  stable:true,  optIn:true,  signal:0.95 },
+    hobbies:[{key:'running',skill:80,role:'peers'},{key:'climbing',skill:38,role:'student'},{key:'cooking',skill:60,role:'practicing'}], dist:2.4, stable:true,  optIn:true,  signal:0.95 },
   { id:'p9',  name:'Noah Field',    alias:'nf',       age:29, height:'180–190', body:'Athletic',  face:'Striking',  hair:'Short',     style:'Casual',       grooming:'Stubble',       intent:'networking', status:'engaged',  visMode:'avatar',
-    hobbies:[{key:'design',skill:55,role:'peers'},{key:'photography',skill:62,role:'practicing'},{key:'surfing',skill:74,role:'teacher'}], dist:36, stable:false, optIn:false, signal:0.3 },
+    hobbies:[{key:'design',skill:55,role:'peers'},{key:'photography',skill:62,role:'practicing'},{key:'surfing',skill:74,role:'teacher'}], dist:9.5, stable:false, optIn:false, signal:0.3 },
   { id:'p10', name:'Anya Kowalski', alias:'anya',     age:33, height:'170–180', body:'Curvy',     face:'Striking',  hair:'Color-treated',style:'Alt',       grooming:'Polished',      intent:'dating',     status:'selective',visMode:'glance',
-    hobbies:[{key:'dancing',skill:78,role:'teacher'},{key:'languages',skill:48,role:'practicing'},{key:'painting',skill:35,role:'student'}], dist:21, stable:true,  optIn:true,  signal:0.7 },
+    hobbies:[{key:'dancing',skill:78,role:'teacher'},{key:'languages',skill:48,role:'practicing'},{key:'painting',skill:35,role:'student'}], dist:5.4, stable:true,  optIn:true,  signal:0.7 },
   { id:'p11', name:'Kenji Hara',    alias:'kenji',    age:46, height:'170–180', body:'Average',   face:'Sharp',     hair:'Short',     style:'Formal',       grooming:'Clean',         intent:'networking', status:'open',     visMode:'reveal',
-    hobbies:[{key:'chess',skill:92,role:'teacher'},{key:'piano',skill:80,role:'practicing'},{key:'reading',skill:70,role:'peers'}], dist:13, stable:true,  optIn:true,  signal:0.8 },
+    hobbies:[{key:'chess',skill:92,role:'teacher'},{key:'piano',skill:80,role:'practicing'},{key:'reading',skill:70,role:'peers'}], dist:3.6, stable:true,  optIn:true,  signal:0.8 },
   { id:'p12', name:'Mira Ó Coileáin',alias:'mira',    age:24, height:'160–170', body:'Slim',      face:'Soft',      hair:'Long',      style:'Bohemian',     grooming:'Polished',      intent:'dating',     status:'warm',     visMode:'hybrid',
-    hobbies:[{key:'yoga',skill:68,role:'peers'},{key:'pottery',skill:45,role:'practicing'},{key:'astronomy',skill:25,role:'student'}], dist:17, stable:true,  optIn:true,  signal:0.78 },
+    hobbies:[{key:'yoga',skill:68,role:'peers'},{key:'pottery',skill:45,role:'practicing'},{key:'astronomy',skill:25,role:'student'}], dist:4.6, stable:true,  optIn:true,  signal:0.78 },
   { id:'p13', name:'Sam Greaves',   alias:'sam',      age:39, height:'180–190', body:'Plus',      face:'Expressive',hair:'Shaved',    style:'Casual',       grooming:'Full beard',    intent:'networking', status:'circulating',visMode:'photo',
-    hobbies:[{key:'baking',skill:72,role:'teacher'},{key:'gardening',skill:60,role:'peers'},{key:'writing',skill:50,role:'practicing'}], dist:30, stable:false, optIn:true,  signal:0.45 },
+    hobbies:[{key:'baking',skill:72,role:'teacher'},{key:'gardening',skill:60,role:'peers'},{key:'writing',skill:50,role:'practicing'}], dist:8.0, stable:false, optIn:true,  signal:0.45 },
   { id:'p14', name:'Yui Tanaka',    alias:'yui',      age:28, height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Medium',    style:'Streetwear',   grooming:'Clean',         intent:'dating',     status:'invisible',visMode:'hidden',
-    hobbies:[{key:'martial',skill:84,role:'teacher'},{key:'meditation',skill:55,role:'practicing'}], dist:50, stable:true,  optIn:false, signal:0.2 },
+    hobbies:[{key:'martial',skill:84,role:'teacher'},{key:'meditation',skill:55,role:'practicing'}], dist:11.2, stable:true,  optIn:false, signal:0.2 },
   { id:'p15', name:'Carlos Rey',    alias:'carlos',   age:30, height:'170–180', body:'Athletic',  face:'Symmetric', hair:'Short',     style:'Sporty',       grooming:'Clean',         intent:'dating',     status:'flirty',   visMode:'photo',
-    hobbies:[{key:'tennis',skill:76,role:'teacher'},{key:'surfing',skill:55,role:'peers'},{key:'lifting',skill:45,role:'practicing'}], dist:8,  stable:true,  optIn:true,  signal:0.92 },
+    hobbies:[{key:'tennis',skill:76,role:'teacher'},{key:'surfing',skill:55,role:'peers'},{key:'lifting',skill:45,role:'practicing'}], dist:2.0, stable:true,  optIn:true,  signal:0.92 },
   { id:'p16', name:'Priya Shah',    alias:'priya',    age:32, height:'160–170', body:'Average',   face:'Striking',  hair:'Long',      style:'Smart-casual', grooming:'Polished',      intent:'networking', status:'selective',visMode:'reveal',
-    hobbies:[{key:'writing',skill:80,role:'peers'},{key:'languages',skill:65,role:'practicing'},{key:'photography',skill:38,role:'student'}], dist:22, stable:true,  optIn:true,  signal:0.7 },
+    hobbies:[{key:'writing',skill:80,role:'peers'},{key:'languages',skill:65,role:'practicing'},{key:'photography',skill:38,role:'student'}], dist:5.8, stable:true,  optIn:true,  signal:0.7 },
 ];
 
 export const SAMPLE_PEOPLE = PEOPLE_SEED;
@@ -177,32 +178,28 @@ export const DEFAULT_PROFILE = () => ({
   id: 'me',
   name: 'You',
   alias: 'you',
-  intent: 'dating', // 'dating' | 'networking' | 'both'
+  intent: 'dating',
   status: { dating: 'open', networking: 'open' },
   visMode: 'hybrid',
-  visMatchGate: 0.5,            // only allow reveal if match >= this
+  visMatchGate: 0.5,
   optIn: true,
-  // Self-described physical traits
   self: {
     age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
     hair: 'Short', style: 'Smart-casual', grooming: 'Clean'
   },
-  // Preferences (filters / weights / excluded) for Layer 2
   prefs: {
-    filters:  { age: ['25–29','30–34'] }, // hard non-negotiables
+    filters:  { age: ['25–29','30–34'] },
     weights:  Object.fromEntries(PHYSICAL_FIELDS.map(f => [f.key, f.weight])),
-    targets:  {                            // ideal values per dimension
+    targets:  {
       height: '170–180', body: 'Athletic', face: 'Symmetric',
       hair: 'Long', style: 'Smart-casual', grooming: 'Clean', age: '25–29'
     },
-    excluded: {} // e.g. { style: ['Formal'] }
+    excluded: {}
   },
-  // Hobbies the user practices (with skill 1..100 + role)
   hobbies: [
     { key:'climbing', skill: 35, role:'student' },
     { key:'cooking',  skill: 55, role:'peers'   },
     { key:'reading',  skill: 60, role:'practicing' }
   ],
-  // Privacy
-  privacy: { hideFromMatchBelow: 0.25, allowSignal:'ble' /* ble|uwb|wifi|gps */ }
+  privacy: { hideFromMatchBelow: 0.25, allowSignal:'ble' }
 });

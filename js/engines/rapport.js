@@ -4,7 +4,6 @@
 import { REP_TIERS } from '../data.js';
 import { clamp } from '../util.js';
 
-/** Tier object for a given point total. */
 export function tierFor(points) {
   for (let i = REP_TIERS.length - 1; i >= 0; i--) {
     if (points >= REP_TIERS[i].min) return REP_TIERS[i];
@@ -12,7 +11,6 @@ export function tierFor(points) {
   return REP_TIERS[0];
 }
 
-/** Tier + progress to next tier (0..1). */
 export function progress(points) {
   const t = tierFor(points);
   const i = REP_TIERS.indexOf(t);
@@ -23,25 +21,19 @@ export function progress(points) {
   return { tier:t, next, into, span, progress: clamp(into / span, 0, 1) };
 }
 
-/**
- * Compute a per-tick passive accrual for a candidate's current zone.
- * Stable + strong-signal opt-in mutual people gain more.
- */
 export function accrualPerTick({ zoneKey, stable, signal, optIn, sharedHobbyKeys = [] }) {
   if (!optIn) return 0;
   let g = 0;
-  if (zoneKey === 'nearby')        g = 1.0;
-  else if (zoneKey === 'adjacent') g = 0.5;
-  else if (zoneKey === 'samezone') g = 0.25;
+  if (zoneKey === 'reach')      g = 1.5;   // eye-contact range
+  else if (zoneKey === 'nearby') g = 1.0;  // same booth / circle
+  else if (zoneKey === 'room')   g = 0.4;  // same area of the venue
   else g = 0;
   if (!stable) g *= 0.5;
   g *= clamp(signal ?? 0.5, 0.2, 1);
-  // Shared hobby bonus per tick: small but compounds.
   g += sharedHobbyKeys.length * 0.05;
   return g;
 }
 
-/** Suggested rating deltas for a manual rapport adjustment. */
 export const MANUAL_DELTAS = [
   { delta:  +50, label:'Memorable interaction',  tone:'mint' },
   { delta:  +20, label:'Good vibe',              tone:'mint' },
@@ -51,10 +43,6 @@ export const MANUAL_DELTAS = [
   { delta:  -50, label:'Boundary crossed',       tone:'rose' },
 ];
 
-/**
- * Standing summary across the whole rapport map.
- * @returns { counts: { tierKey: number }, total: number, max: { id, points } }
- */
 export function summary(rapportMap) {
   const counts = Object.fromEntries(REP_TIERS.map(t => [t.key, 0]));
   let total = 0; let max = { id:null, points: -Infinity };

@@ -1,4 +1,4 @@
-// Layer 3 — Third-Space Proximity screen.
+// Layer 3 — Third-Space Proximity screen (10m world).
 // Consumes: engines/proximity.js + state.world (live signals).
 
 import { PROX_ZONES, SAMPLE_PEOPLE } from './data.js';
@@ -62,9 +62,9 @@ export function render(root) {
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <p class="h-eyebrow">Layer 3</p>
+          <p class="h-eyebrow">Layer 3 · 10m world</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Third-Space Proximity</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Context-aware nearby presence in approved third spaces. The Spectrum shows social proximity buckets, never exact locations. Your discovery surface updates every second as the room shifts.</p>
+          <p class="text-sm text-slate-400 mt-1 max-w-2xl">The Spectrum operates inside a 10m venue bubble — four bands collapsed into the room you're already in. Beyond 10m, people simply do not appear.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="pill ${me.optIn?'pill-mint':'pill-rose'}"><span class="dot"></span> ${me.optIn?'You are discoverable':'You are private'}</span>
@@ -100,12 +100,12 @@ export function render(root) {
           <div class="card-soft p-3">
             <h3 class="font-display font-semibold mb-2">How the engine classifies</h3>
             <ul class="text-xs text-slate-400 grid gap-1.5">
-              <li>· Strong stable signal in 0–8m → <b style="color:#78f3d3">Nearby</b></li>
-              <li>· 8–18m or briefly nearby → <b style="color:#9b8cff">Adjacent</b></li>
-              <li>· Same room/area → <b style="color:#7b6cff">SameZone</b></li>
-              <li>· Unstable / passing through → <b style="color:#ffd073">Passing</b></li>
+              <li>· 0–2m, eye-contact range → <b style="color:#78f3d3">Reach</b></li>
+              <li>· 2–5m, same booth or circle → <b style="color:#9b8cff">Nearby</b></li>
+              <li>· 5–10m, same area of the venue → <b style="color:#7b6cff">Room</b></li>
+              <li>· Unstable / brief presence → <b style="color:#ffd073">Passing</b></li>
               <li>· Opt-out or hidden → <b style="color:#94a3b8">Hidden</b></li>
-              <li>· Mutual mute → <b style="color:#475569">Muted</b></li>
+              <li>· Past 10m or mutual mute → <b style="color:#475569">OutRange / Muted</b></li>
             </ul>
           </div>
         </aside>

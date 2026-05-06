@@ -221,3 +221,22 @@ input[type=number] { -moz-appearance: textfield; }
 
 /* Section header */
 .h-eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color:#94a3b8; }
+
+/* IrfTek parent strip */
+.irftek-strip {
+  background: linear-gradient(180deg, rgba(197,255,61,.06), rgba(197,255,61,0)) , #07070d;
+  border-bottom: 1px solid rgba(197,255,61,.18);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #b6c2a3;
+}
+.irftek-strip a { color: #c5ff3d; opacity:.85; transition: opacity .15s ease; }
+.irftek-strip a:hover { opacity: 1; }
+.irftek-meta { color: #68605a; }
+.irftek-nav a { color: #b6c2a3; }
+.irftek-nav a:hover { color: #c5ff3d; }
+@media (max-width: 640px) {
+  .irftek-nav a { display: none; }
+  .irftek-nav a:nth-child(1), .irftek-nav a:nth-child(2) { display: inline; }
+}
