@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IrfTek — Organized Master Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080A;
+  --panel:#111116;
+  --panel2:#17171F;
+  --card:#1D1D27;
+  --text:#F7F3EA;
+  --muted:#A49D93;
+  --faint:#68605A;
+  --line:rgba(247,243,234,.12);
+
+  --green:#C5FF3D;
+  --cyan:#3DE7FF;
+  --blue:#6495FF;
+  --purple:#B37CFF;
+  --pink:#FF61C7;
+  --orange:#FFB347;
+  --red:#FF6B5D;
+  --mint:#72F2B6;
+
+  --shadow:0 24px 80px rgba(0,0,0,.42);
+  --radius:28px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(197,255,61,.12),transparent 26%),
+    radial-gradient(circle at 84% 8%,rgba(61,231,255,.10),transparent 28%),
+    radial-gradient(circle at 65% 95%,rgba(255,97,199,.08),transparent 28%),
+    var(--bg);
+  color:var(--text);
+  font-family:"Schibsted Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body:before{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  opacity:.055;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit}
+.shell{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-columns:320px minmax(0,1fr);
+  min-height:100vh;
+}
+.sidebar{
+  position:sticky;top:0;height:100vh;
+  background:rgba(17,17,22,.82);
+  backdrop-filter:blur(24px);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  padding:22px;
+  overflow:auto;
+}
+.brand{
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:18px;
+  background:linear-gradient(135deg,rgba(197,255,61,.12),rgba(61,231,255,.055),rgba(255,97,199,.045));
+  margin-bottom:18px;
+}
+.brand .eyebrow,.mono{
+  font-family:"JetBrains Mono",monospace;
+  font-size:.66rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.brand h1{
+  font-family:"Instrument Serif",serif;
+  font-size:2.25rem;
+  line-height:.9;
+  font-weight:400;
+  letter-spacing:-.04em;
+  margin:8px 0;
+}
+.brand .role{
+  color:var(--green);
+  font-family:"Instrument Serif",serif;
+  font-style:italic;
+  font-size:1.12rem;
+}
+.nav-group{margin:16px 0 6px}
+.nav-title{
+  font-family:"JetBrains Mono",monospace;
+  font-size:.62rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--faint);
+  margin:0 0 8px 6px;
+}
+.nav-list{display:flex;flex-direction:column;gap:6px}
+.nav-link{
+  display:grid;
+  grid-template-columns:9px 1fr auto;
+  gap:10px;
+  align-items:center;
+  padding:10px 11px;
+  border:1px solid transparent;
+  border-radius:16px;
+  color:var(--muted);
+  background:transparent;
+  transition:.18s ease;
+}
+.nav-link:hover,.nav-link.active{
+  color:var(--text);
+  background:rgba(255,255,255,.045);
+  border-color:var(--line);
+}
+.dot{width:9px;height:9px;border-radius:999px;background:var(--green);box-shadow:0 0 18px currentColor}
+.nav-link small{font-family:"JetBrains Mono",monospace;font-size:.58rem;color:var(--faint)}
+.c-green{--c:var(--green)}.c-cyan{--c:var(--cyan)}.c-blue{--c:var(--blue)}.c-purple{--c:var(--purple)}.c-pink{--c:var(--pink)}.c-orange{--c:var(--orange)}.c-red{--c:var(--red)}.c-mint{--c:var(--mint)}
+.nav-link .dot,.section .accent-dot,.tag.color{background:var(--c);color:var(--c)}
+.quick{
+  margin-top:auto;
+  display:grid;
+  gap:8px;
+  padding-top:18px;
+}
+.quick a,.quick button{
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:11px 12px;
+  background:rgba(255,255,255,.025);
+  color:var(--text);
+  font-family:"JetBrains Mono",monospace;
+  font-size:.66rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  cursor:pointer;
+  text-align:left;
+}
+.quick a.primary{border-color:rgba(197,255,61,.4);background:rgba(197,255,61,.09);color:var(--green)}
+.main{
+  min-width:0;
+  padding:clamp(18px,3.4vw,54px);
+}
+.section{
+  --c:var(--green);
+  min-height:92vh;
+  scroll-margin-top:26px;
+  margin-bottom:34px;
+  border:1px solid var(--line);
+  border-radius:36px;
+  background:
+    radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--c) 16%, transparent), transparent 34%),
+    linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.018));
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.section-head{
+  padding:clamp(24px,4vw,46px);
+  border-bottom:1px solid var(--line);
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:18px;
+  align-items:start;
+}
+.section-kicker{
+  display:flex;align-items:center;gap:10px;
+  font-family:"JetBrains Mono",monospace;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  font-size:.68rem;
+  color:var(--muted);
+  margin-bottom:16px;
+}
+.accent-dot{width:10px;height:10px;border-radius:999px;box-shadow:0 0 22px var(--c)}
+h2{
+  font-family:"Instrument Serif",serif;
+  font-size:clamp(3rem,7vw,7.8rem);
+  line-height:.88;
+  letter-spacing:-.055em;
+  font-weight:400;
+  max-width:11ch;
+}
+h2 em{color:var(--c);font-style:italic}
+.section-summary{
+  max-width:520px;
+  color:var(--muted);
+  line-height:1.6;
+  font-size:1.02rem;
+  align-self:end;
+}
+.section-body{padding:clamp(22px,4vw,46px)}
+.grid{display:grid;gap:16px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:20px;
+  background:rgba(8,8,10,.32);
+  min-height:100%;
+}
+.card h3{
+  font-family:"Instrument Serif",serif;
+  font-size:2rem;
+  line-height:.98;
+  font-weight:400;
+  letter-spacing:-.03em;
+  margin-bottom:12px;
+}
+.card p,.card li{color:var(--muted);line-height:1.55}
+.card ul{padding-left:18px;display:flex;flex-direction:column;gap:8px}
+.big{
+  font-family:"Instrument Serif",serif;
+  font-size:clamp(3.4rem,8vw,8rem);
+  line-height:.82;
+  color:var(--c);
+  letter-spacing:-.06em;
+}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.tag{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:7px 10px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:.62rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  background:rgba(255,255,255,.025);
+}
+.tag.color{border-color:color-mix(in srgb,var(--c) 45%, transparent);background:color-mix(in srgb,var(--c) 10%, transparent)}
+.flow{
+  display:flex;flex-wrap:wrap;gap:9px;align-items:center;
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:18px;
+  background:rgba(8,8,10,.26);
+  margin-top:18px;
+}
+.node{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:9px 12px;
+  color:var(--text);
+  background:rgba(255,255,255,.025);
+  font-size:.88rem;
+}
+.arrow{color:var(--c);font-weight:800}
+.rows{border-top:1px solid var(--line)}
+.row{
+  display:grid;
+  grid-template-columns:210px 1fr;
+  gap:24px;
+  padding:20px 0;
+  border-bottom:1px solid var(--line);
+}
+.key{
+  font-family:"JetBrains Mono",monospace;
+  font-size:.68rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--c);
+}
+.val{
+  font-family:"Instrument Serif",serif;
+  font-size:clamp(1.24rem,2.1vw,1.85rem);
+  line-height:1.14;
+}
+.val small{
+  display:block;
+  margin-top:7px;
+  font-family:"Schibsted Grotesk",sans-serif;
+  color:var(--muted);
+  font-size:.98rem;
+  line-height:1.55;
+}
+.cta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.btn{
+  border:1px solid color-mix(in srgb,var(--c) 45%, transparent);
+  border-radius:999px;
+  padding:11px 14px;
+  background:color-mix(in srgb,var(--c) 12%, transparent);
+  color:var(--c);
+  font-family:"JetBrains Mono",monospace;
+  font-size:.68rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.btn.secondary{border-color:var(--line);background:rgba(255,255,255,.025);color:var(--text)}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field.full{grid-column:1/-1}
+.field label{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;color:var(--c)}
+.field input,.field select,.field textarea{
+  width:100%;border:1px solid var(--line);border-radius:16px;
+  background:rgba(8,8,10,.46);color:var(--text);
+  padding:12px 13px;outline:none;
+}
+.field textarea{min-height:108px;resize:vertical;line-height:1.5}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:color-mix(in srgb,var(--c) 55%, transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 10%, transparent)}
+.output{
+  margin-top:18px;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:rgba(8,8,10,.32)
+}
+.output-head{display:flex;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--c)}
+.output-text{white-space:pre-wrap;padding:18px;color:var(--muted);line-height:1.55;max-height:440px;overflow:auto;font-size:.94rem}
+.saved-list{display:grid;gap:10px;margin-top:14px}
+.saved-item{border:1px solid var(--line);border-radius:16px;padding:13px;background:rgba(255,255,255,.025);display:grid;grid-template-columns:1fr auto;gap:10px}
+.saved-item small{display:block;color:var(--muted);margin-top:4px;line-height:1.4}
+.saved-item button{border:1px solid var(--line);border-radius:999px;padding:7px 9px;background:transparent;color:var(--muted);cursor:pointer}
+.schema{white-space:pre-wrap;font-family:"JetBrains Mono",monospace;font-size:.78rem;line-height:1.55;color:var(--muted);background:rgba(8,8,10,.45);border:1px solid var(--line);border-radius:24px;padding:18px;max-height:460px;overflow:auto}
+.timeline{display:grid;gap:14px}
+.step{border:1px solid var(--line);border-radius:22px;padding:18px;background:rgba(8,8,10,.26);display:grid;grid-template-columns:120px 1fr;gap:18px}
+.step strong{color:var(--c);font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
+.step p{color:var(--muted);line-height:1.55}
+.notice{border:1px solid color-mix(in srgb,var(--c) 45%, transparent);border-radius:26px;padding:22px;background:color-mix(in srgb,var(--c) 9%, transparent);margin-top:18px}
+.notice p{color:var(--muted);line-height:1.6}
+.mobile-menu{display:none}
+@media(max-width:1100px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:relative;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+  .nav-group{margin-top:10px}
+  .nav-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick{margin-top:12px}
+  .section{min-height:auto}
+  .section-head{grid-template-columns:1fr}
+  .grid.two,.grid.three,.grid.four,.form-grid{grid-template-columns:1fr}
+  .row,.step{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .main{padding:12px}
+  .sidebar{padding:14px}
+  .section{border-radius:24px}
+  .section-head,.section-body{padding:22px}
+  h2{font-size:3.5rem}
+  .nav-list{grid-template-columns:1fr}
+}
+@media print{
+  body{background:white;color:black}
+  body:before,.sidebar{display:none}
+  .shell{display:block}
+  .main{padding:0}
+  .section{box-shadow:none;border-color:#ccc;border-radius:0;page-break-after:always;background:white}
+  .card,.flow,.output,.schema,.notice{background:white;border-color:#ccc}
+  .card p,.card li,.section-summary,.val small,.output-text,.schema{color:#333}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="eyebrow">IrfTek master dashboard</div>
+      <h1>IrfTek<br>Architecture</h1>
+      <div class="role">Irfan Tekinerdogan · Visionary Architect</div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Primary</div>
+      <div class="nav-list">
+        <a class="nav-link c-green" href="#overview"><span class="dot"></span><span>Overview</span><small>01</small></a>
+        <a class="nav-link c-cyan" href="#proof-platform"><span class="dot"></span><span>Submit Proof</span><small>02</small></a>
+        <a class="nav-link c-blue" href="#database"><span class="dot"></span><span>Proof Database</span><small>03</small></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Company</div>
+      <div class="nav-list">
+        <a class="nav-link c-purple" href="#company"><span class="dot"></span><span>Company System</span><small>04</small></a>
+        <a class="nav-link c-orange" href="#parallel"><span class="dot"></span><span>Parallel Tracks</span><small>05</small></a>
+        <a class="nav-link c-mint" href="#referral"><span class="dot"></span><span>20% Referral</span><small>06</small></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Product worlds</div>
+      <div class="nav-list">
+        <a class="nav-link c-green" href="#football"><span class="dot"></span><span>Football United</span><small>07</small></a>
+        <a class="nav-link c-blue" href="#fieldtech"><span class="dot"></span><span>Field Tech</span><small>08</small></a>
+        <a class="nav-link c-orange" href="#equipment"><span class="dot"></span><span>Shoes + Uniforms</span><small>09</small></a>
+        <a class="nav-link c-pink" href="#spectrum"><span class="dot"></span><span>The Spectrum</span><small>10</small></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">City + research</div>
+      <div class="nav-list">
+        <a class="nav-link c-cyan" href="#enschede"><span class="dot"></span><span>Why Enschede</span><small>11</small></a>
+        <a class="nav-link c-purple" href="#research"><span class="dot"></span><span>Aen / Aeon Research</span><small>12</small></a>
+        <a class="nav-link c-red" href="#institutional"><span class="dot"></span><span>Institutional Outreach</span><small>13</small></a>
+        <a class="nav-link c-mint" href="#availability"><span class="dot"></span><span>Availability</span><small>14</small></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Partners</div>
+      <div class="nav-list">
+        <a class="nav-link c-orange" href="#open-proof"><span class="dot"></span><span>Open Proof</span><small>15</small></a>
+        <a class="nav-link c-pink" href="#roles"><span class="dot"></span><span>Roles</span><small>16</small></a>
+        <a class="nav-link c-blue" href="#investor"><span class="dot"></span><span>Investor View</span><small>17</small></a>
+      </div>
+    </div>
+
+    <div class="quick">
+      <a class="primary" href="#proof-platform">Submit proof proposal</a>
+      <a href="./index.html">→ Open The Spectrum</a>
+      <a href="mailto:irf.creator+irftek@gmail.com">Email IrfTek</a>
+      <button onclick="window.print()">Print / save PDF</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="section c-green" id="overview">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker"><span class="accent-dot"></span>01 · Master overview</div>
+          <h2>Not one app.<br><em>A full-stack city system.</em></h2>
+        </div>
+        <p class="section-summary">IrfTek is a multi-software, hardware, culture, and research infrastructure company. It builds real-world connection systems through sports, third spaces, AI/data, equipment, physical design, music, and communication research.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid four">
+          <div class="card"><div class="big">I</div><h3>Parent architecture</h3><p>IrfTek B.V. becomes the parent company for product worlds, research tracks, city pilots, and partner networks.</p></div>
+          <div class="card"><div class="big">2</div><h3>First worlds</h3><p>Football United and The Spectrum validate the sports and third-space sides of the same connection thesis.</p></div>
+          <div class="card"><div class="big">20%</div><h3>Partner upside</h3><p>Verified monthly customers brought through a partner can generate 20% recurring referral commission.</p></div>
+          <div class="card"><div class="big">053</div><h3>Enschede first</h3><p>Enschede is the reference city: multicultural, multilingual, sports-rich, student-powered, and full of third spaces.</p></div>
+        </div>
+        <div class="tags">
+          <span class="tag color">software</span><span class="tag color">hardware</span><span class="tag color">3D printing</span><span class="tag color">football</span><span class="tag color">third spaces</span><span class="tag color">research</span><span class="tag color">music</span><span class="tag color">culture</span><span class="tag color">Enschede</span>
+        </div>
+        <div class="cta-row">
+          <a class="btn" href="#proof-platform">Submit proof proposal</a>
+          <a class="btn secondary" href="#database">See database model</a>
+          <a class="btn secondary" href="#parallel">View parallel tracks</a>
+          <a class="btn secondary" href="./index.html">Open The Spectrum live demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-cyan" id="proof-platform">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker"><span class="accent-dot"></span>02 · Proof input platform</div>
+          <h2>Submit proof.<br><em>Structure value.</em></h2>
+        </div>
+        <p class="section-summary">Contributors can submit concrete proof: prototypes, venue introductions, uniform samples, field tech tests, research notes, customer referrals, investor introductions, or working components.</p>
+      </div>
+      <div class="section-body">
+        <div class="card">
+          <div class="form-grid">
+            <div class="field"><label for="proofName">Name / organization</label><input id="proofName" placeholder="Your name, team, company, or community"></div>
+            <div class="field"><label for="proofContact">Contact</label><input id="proofContact" placeholder="Email, phone, Instagram, LinkedIn, GitHub, etc."></div>
+
+            <div class="field"><label for="proofTrack">IrfTek track</label><select id="proofTrack">
+              <option>Football United</option><option>The Spectrum</option><option>Equipment / Shoes / Uniforms</option><option>3D Printing / Fabrication</option><option>Field Technology</option><option>Cafés / Venues / Third Spaces</option><option>Music / Culture / Twitch</option><option>Research / Aen / Aeon</option><option>Enschede Partnerships</option><option>Investment / Institutional</option><option>Other</option>
+            </select></div>
+            <div class="field"><label for="proofType">Proof type</label><select id="proofType">
+              <option>Prototype</option><option>Working code</option><option>Design</option><option>Field or venue introduction</option><option>Customer referral</option><option>Investor / institutional introduction</option><option>Research note</option><option>Cost model</option><option>Equipment sample</option><option>Twitch / media format</option><option>Community / user group</option><option>Other</option>
+            </select></div>
+
+            <div class="field full"><label for="proofClaim">What can you prove?</label><textarea id="proofClaim" placeholder="Example: I can bring 24 players for a Football United test match, or I can prototype a camera-readable uniform in 10 days."></textarea></div>
+            <div class="field full"><label for="proofDeliverable">Deliverable</label><textarea id="proofDeliverable" placeholder="What IrfTek receives: demo, file, design, intro, agreement, prototype, list, research note, sample, event plan, etc."></textarea></div>
+
+            <div class="field"><label for="proofTimeline">Timeline</label><input id="proofTimeline" placeholder="Example: 3 days, 2 weeks, by June 1"></div>
+            <div class="field"><label for="proofCost">Cost / compensation expectation</label><input id="proofCost" placeholder="Freelance fee, referral, commission, unpaid intro, role discussion, etc."></div>
+
+            <div class="field"><label for="proofOwnership">Ownership expectation</label><input id="proofOwnership" placeholder="IrfTek owns after payment, license, partner-owned, to discuss, etc."></div>
+            <div class="field"><label for="proofNeed">What you need from IrfTek</label><input id="proofNeed" placeholder="Logo, context, field, venue, approval, deck, etc."></div>
+
+            <div class="field"><label for="proofInvestorPermission">Investor visibility</label><select id="proofInvestorPermission"><option>Founder review only</option><option>Investor-visible after IrfTek approval</option><option>Publicly shareable after IrfTek approval</option></select></div>
+            <div class="field"><label for="proofPreferredReview">Preferred review path</label><select id="proofPreferredReview"><option>Founder approval first</option><option>Freelance scope discussion</option><option>Referral commission path</option><option>Investor/partner introduction path</option><option>Research review path</option></select></div>
+
+            <div class="field full"><label for="proofNotes">Extra notes</label><textarea id="proofNotes" placeholder="Links, portfolio, assumptions, risks, dependencies, examples, previous work."></textarea></div>
+          </div>
+
+          <div class="cta-row">
+            <button class="btn" onclick="generateProofSubmission()">Generate submission</button>
+            <button class="btn secondary" onclick="copyProofSubmission()">Copy text</button>
+            <button class="btn secondary" onclick="emailProofSubmission()">Email to IrfTek</button>
+            <button class="btn secondary" onclick="generateInvestorProofSummary()">Investor summary</button>
+            <button class="btn secondary" onclick="downloadProofJSON()">Download JSON</button>
+            <button class="btn secondary" onclick="saveProofDraft()">Save locally</button>
+            <button class="btn secondary" onclick="clearProofForm()">Clear</button>
+          </div>
+
+          <div class="notice"><p>This static page prepares submissions locally. It can open a structured email to <strong>irf.creator+irftek@gmail.com</strong>, copy text, download JSON, and save drafts locally. A backend version can connect the same form to the database model below.</p></div>
+
+          <div class="output">
+            <div class="output-head"><span>Generated proof submission</span><span id="proofStatus">Ready</span></div>
+            <div class="output-text" id="proofOutput">Fill in the form and select "Generate submission".</div>
+          </div>
+          <div class="saved-list" id="savedProofs"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-blue" id="database">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker"><span class="accent-dot"></span>03 · Database + approval workflow</div>
+          <h2>Proof becomes<br><em>reviewable assets.</em></h2>
+        </div>
+        <p class="section-summary">Submissions go to IrfTek first. Investor visibility only happens after founder approval, preventing unverified claims from reaching partners or investors.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Intake</h3><ul><li>Contributor profile</li><li>Proof submission</li><li>Assets, links, files</li><li>Track and proof type</li><li>Timeline, cost, ownership</li></ul></div>
+          <div class="card"><h3>Founder review</h3><ul><li>Status queue</li><li>Scores and notes</li><li>Approve, reject, commission</li><li>Request more info</li><li>Investor visibility toggle</li></ul></div>
+          <div class="card"><h3>Investor packet</h3><ul><li>Approved proof only</li><li>Founder summary</li><li>Outreach log</li><li>Referral tracking</li><li>20% commission records</li></ul></div>
+        </div>
+        <div class="flow"><span class="node">Contributor input</span><span class="arrow">→</span><span class="node">Database</span><span class="arrow">→</span><span class="node">Founder queue</span><span class="arrow">→</span><span class="node">Irfan approval</span><span class="arrow">→</span><span class="node">Investor-visible packet</span></div>
+        <div class="schema">Core tables:
+contributors
+proof_submissions
+proof_assets
+proof_reviews
+proof_compensation
+referral_customers
+investor_proof_packets
+investor_packet_items
+proof_outreach_log
+
+Approval states:
+new → reviewing → needs_more_info → approved_internal → approved_for_investors → commissioned → paid / archived / rejected
+
+Investor rule:
+investor_visible = true only after founder approval.</div>
+      </div>
+    </section>
+
+    <section class="section c-purple" id="company">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>04 · Company system</div><h2>IrfTek is<br><em>the parent layer.</em></h2></div>
+        <p class="section-summary">IrfTek is the operating architecture that holds software, hardware, research, spaces, football, social discovery, culture, and institutional outreach together.</p>
+      </div>
+      <div class="section-body">
+        <div class="rows">
+          <div class="row"><div class="key">Identity</div><div class="val">IrfTek B.V.<small>Parent company for product worlds, research tracks, proof submissions, and partner networks.</small></div></div>
+          <div class="row"><div class="key">Founder</div><div class="val">Irfan Tekinerdogan · Visionary Architect, Founder of IrfTek<small>Based in Enschede · Phone: +31 6 28967106 · Email: irf.creator+irftek@gmail.com</small></div></div>
+          <div class="row"><div class="key">Mission</div><div class="val">Build and research real-world connection infrastructure<small>Sports, third spaces, identity, equipment, culture, communication, and city-scale participation.</small></div></div>
+          <div class="row"><div class="key">Scope</div><div class="val">Software · hardware · 3D printing · equipment · cafés · music · AI/data · research<small>IrfTek is not only an app, football company, social network, clothing brand, or café concept.</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-orange" id="parallel">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>05 · Parallel tracks</div><h2>Everything moves<br><em>in parallel.</em></h2></div>
+        <p class="section-summary">Parallel does not mean chaotic. Each track has one first proof, while all tracks develop under the same parent architecture.</p>
+      </div>
+      <div class="section-body">
+        <div class="timeline">
+          <div class="step"><strong>Legal</strong><p>IrfTek B.V., bank account, investment path, IP boundaries, referral agreements.</p></div>
+          <div class="step"><strong>Football</strong><p>Reference match, player cards, rating engine, kits, highlights, Twitch format.</p></div>
+          <div class="step"><strong>Spectrum</strong><p>Venue test, statuses, anonymous avatars, match percentage, consent reveal. <a href="./index.html" style="color:var(--c)">→ live demo</a></p></div>
+          <div class="step"><strong>Equipment</strong><p>Shoe ID, uniform ID, tags, smart matchwear later, kit drop.</p></div>
+          <div class="step"><strong>Research</strong><p>Aen/Aeon, multilingual communication, ethics, status language, interaction research.</p></div>
+          <div class="step"><strong>City</strong><p>Enschede partners: Saxion, UT, venues, fields, cafés, clubs, communities.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-mint" id="referral">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>06 · Partner revenue</div><h2>Bring a customer.<br><em>Earn recurring upside.</em></h2></div>
+        <p class="section-summary">When a paying customer comes through a partner, the partner can receive 20% of that customer's monthly payment after verification and agreement.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid four">
+          <div class="card"><div class="big">€19</div><p>Example monthly membership anchor.</p></div>
+          <div class="card"><div class="big">20%</div><p>Recurring partner share on verified monthly payment.</p></div>
+          <div class="card"><div class="big">€3.80</div><p>Monthly commission per €19 customer.</p></div>
+          <div class="card"><div class="big">€45.60</div><p>Yearly commission per retained customer.</p></div>
+        </div>
+        <div class="flow"><span class="node">Partner shares IrfTek</span><span class="arrow">→</span><span class="node">Customer joins</span><span class="arrow">→</span><span class="node">Monthly payment</span><span class="arrow">→</span><span class="node">20% partner share</span><span class="arrow">→</span><span class="node">Network grows</span></div>
+      </div>
+    </section>
+
+    <section class="section c-green" id="football">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>07 · Football United</div><h2>The game beneath the game,<br><em>made visible.</em></h2></div>
+        <p class="section-summary">Football United turns amateur football into player cards, ratings, highlights, leagues, Twitch content, uniforms, shoes, field equipment, and persistent player identity.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Player identity</h3><ul><li>Cards</li><li>Match history</li><li>Ratings</li><li>Highlights</li><li>League profile</li></ul></div>
+          <div class="card"><h3>Broadcast</h3><ul><li>Best games on Twitch</li><li>Score overlays</li><li>Player card overlays</li><li>City rivalries</li><li>Match stories</li></ul></div>
+          <div class="card"><h3>Equipment</h3><ul><li>Uniform ID</li><li>Shoe ID</li><li>Wearable tags</li><li>3D-printed mounts</li><li>Field check-in</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-blue" id="fieldtech">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>08 · Field technology</div><h2>The field is<br><em>the machine.</em></h2></div>
+        <p class="section-summary">The field identifies players, captures play, supports ratings, produces highlights, enables Twitch streaming, and remains maintainable at city scale.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid four">
+          <div class="card"><h3>Capture</h3><ul><li>Multi-camera coverage</li><li>Tactical view</li><li>Highlight view</li><li>Low-light handling</li></ul></div>
+          <div class="card"><h3>Tracking</h3><ul><li>Camera tracking</li><li>Optional UWB</li><li>Ball detection</li><li>Manual correction</li></ul></div>
+          <div class="card"><h3>Identity</h3><ul><li>NFC check-in</li><li>Uniform patch</li><li>Shoe marker</li><li>Consent state</li></ul></div>
+          <div class="card"><h3>Operations</h3><ul><li>Edge box</li><li>Upload queue</li><li>Tag charging</li><li>Calibration routine</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-orange" id="equipment">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>09 · Shoes + uniform tech</div><h2>Equipment is<br><em>infrastructure.</em></h2></div>
+        <p class="section-summary">Shoes and uniforms begin as identity and culture gear. Sensors come later after trust, demand, and field validation.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid two">
+          <div class="card"><h3>Shoe tech</h3><ul><li>NFC/RFID/QR identity marker</li><li>Anti-tamper serial</li><li>Team colorways</li><li>Optional IMU / pressure insole later</li><li>Removable electronics only</li></ul></div>
+          <div class="card"><h3>Uniform tech</h3><ul><li>Camera-readable numbers</li><li>NFC/RFID patch</li><li>UWB tag pocket</li><li>Modular washable patches</li><li>Team identity and sponsor zones</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-pink" id="spectrum">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>10 · The Spectrum</div><h2>Real life<br><em>has statuses.</em></h2></div>
+        <p class="section-summary">The Spectrum is a third-space connection layer: anonymous avatars, one-word statuses, match percentage, dating/networking modes, and consent-based reveal — operating inside a 10m venue bubble.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Statuses</h3><p>Open, Curious, Focused, Networking, Flirting, Private.</p></div>
+          <div class="card"><h3>Privacy</h3><p>Avatar-first, reveal-later, mutual consent, separate dating/networking modes.</p></div>
+          <div class="card"><h3>Third spaces</h3><p>Cafés, bars, campuses, venues, parks, events, and nightlife contexts.</p></div>
+        </div>
+        <div class="cta-row">
+          <a class="btn" href="./index.html">Open the live demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-cyan" id="enschede">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>11 · Why Enschede</div><h2>A compact city for<br><em>new connection systems.</em></h2></div>
+        <p class="section-summary">Enschede combines multicultural life, non-native English interaction, sport density, third spaces, nightlife, universities, and room for experimentation.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Multicultural signal</h3><ul><li>Many cultures</li><li>English as bridge</li><li>Hybrid communication</li><li>Real third-space interaction</li></ul></div>
+          <div class="card"><h3>Sports density</h3><ul><li>Football</li><li>Student sport</li><li>Casual play</li><li>Clubs and fields</li></ul></div>
+          <div class="card"><h3>Builder ecosystem</h3><ul><li>Saxion</li><li>UT</li><li>Novel-T</li><li>Students and engineers</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-purple" id="research">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>12 · IrfTek Research</div><h2>Connection is also<br><em>a language problem.</em></h2></div>
+        <p class="section-summary">Aen/Aeon is a research track: Aen as evolving concept language for science and clarity; Aeon as ethical/prescriptive layer for connection and common space.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Aen</h3><ul><li>Concept language</li><li>Mix of existing cultures and language systems</li><li>Scientific clarity</li><li>Machine-readable structure</li></ul></div>
+          <div class="card"><h3>Aeon</h3><ul><li>Person as irreducible</li><li>Translate toward the one you meet</li><li>Non-coercion</li><li>Common space and ground</li></ul></div>
+          <div class="card"><h3>Connection research</h3><ul><li>Multilingual interaction</li><li>Status language</li><li>Body/place/music effects</li><li>AI-supported clarity</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-red" id="institutional">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>13 · Institutional outreach</div><h2>Grow Enschede<br><em>as reference city.</em></h2></div>
+        <p class="section-summary">IrfTek will approach OpenAI, Google, Microsoft, Anthropic/Claude, cloud, AI, hardware, sports-tech, infrastructure, universities, municipalities, and funds.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Ask</h3><ul><li>Strategic investment</li><li>Compute/cloud support</li><li>Engineering collaboration</li><li>Research partnership</li></ul></div>
+          <div class="card"><h3>They get</h3><ul><li>Real-world AI testbed</li><li>Sports/third-space use cases</li><li>European city reference</li><li>Student/community access</li></ul></div>
+          <div class="card"><h3>Message</h3><p>AI moves from chat into places, bodies, teams, fields, cafés, and culture.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-mint" id="availability">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>14 · In-person availability</div><h2>No default calls.<br><em>Meet in Enschede.</em></h2></div>
+        <p class="section-summary">Irfan prefers direct in-person conversations. Contact first by email or phone when possible.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Café Mix</h3><p>Usual window: 14:00–23:00. Best for focused architecture, builders, investors, and partner conversations.</p></div>
+          <div class="card"><h3>Rocks</h3><p>Usual window: 01:00–04:00. Best for culture, music, community, nightlife, and spontaneous conversations.</p></div>
+          <div class="card"><h3>Saxion University</h3><p>On demand by arrangement. Best for student builders, technical discussions, prototype planning, and ecosystem introductions.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-orange" id="open-proof">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>15 · Open proof invitation</div><h2>Bring proof,<br><em>not only opinions.</em></h2></div>
+        <p class="section-summary">People can enter IrfTek by showing concrete proof: something built, introduced, tested, designed, priced, researched, or activated.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Technical proof</h3><ul><li>Prototype</li><li>Working code</li><li>Camera test</li><li>API schema</li><li>Rating generator</li></ul></div>
+          <div class="card"><h3>Physical proof</h3><ul><li>Uniform sample</li><li>Shoe ID</li><li>3D mount</li><li>Venue object</li><li>Field kit</li></ul></div>
+          <div class="card"><h3>Growth proof</h3><ul><li>Paying customers</li><li>Venue interest</li><li>Team signup</li><li>Investor intro</li><li>Student group</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-pink" id="roles">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>16 · Roles + partner lanes</div><h2>Where people<br><em>fit.</em></h2></div>
+        <p class="section-summary">IrfTek needs technical, physical, cultural, business, and research contributors, preferably through proof-based entry.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Technical</h3><ul><li>Full-stack</li><li>Computer vision</li><li>Hardware</li><li>Data/scoring</li><li>Privacy</li></ul></div>
+          <div class="card"><h3>Physical + culture</h3><ul><li>Uniform design</li><li>Shoe/equipment</li><li>Café/interior</li><li>Music lead</li><li>Twitch producer</li></ul></div>
+          <div class="card"><h3>Business</h3><ul><li>Field partnerships</li><li>Venue partnerships</li><li>Investor/legal</li><li>Operations</li><li>Community connectors</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section c-blue" id="investor">
+      <div class="section-head">
+        <div><div class="section-kicker"><span class="accent-dot"></span>17 · Investor view</div><h2>Platform company<br><em>with physical depth.</em></h2></div>
+        <p class="section-summary">The investor story is not an app. It is a city-scale infrastructure and culture company with sports, third spaces, equipment, research, and recurring partner distribution.</p>
+      </div>
+      <div class="section-body">
+        <div class="grid three">
+          <div class="card"><h3>Software moat</h3><ul><li>Identity</li><li>Profiles</li><li>Ratings</li><li>APIs</li><li>Permissions</li></ul></div>
+          <div class="card"><h3>Physical moat</h3><ul><li>Fields</li><li>Uniforms</li><li>Shoes</li><li>3D hardware</li><li>Venues</li></ul></div>
+          <div class="card"><h3>Culture moat</h3><ul><li>Twitch</li><li>Music</li><li>Teams</li><li>Status language</li><li>Belonging</li></ul></div>
+        </div>
+        <div class="notice"><p>IrfTek B.V. is being prepared as the correct legal structure. Formal investment transfers follow the official company account and written legal agreement.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const links=[...document.querySelectorAll('.nav-link')];
+const sections=[...document.querySelectorAll('.section')];
+const obs=new IntersectionObserver(entries=>{
+ entries.forEach(e=>{
+  if(e.isIntersecting){
+   links.forEach(l=>l.classList.toggle('active', l.getAttribute('href')==='#'+e.target.id));
+  }
+ });
+},{threshold:.35});
+sections.forEach(s=>obs.observe(s));
+
+function proofValue(id){const el=document.getElementById(id);return el?el.value.trim():"";}
+function proofData(){return {
+ name:proofValue("proofName"),contact:proofValue("proofContact"),track:proofValue("proofTrack"),type:proofValue("proofType"),
+ claim:proofValue("proofClaim"),deliverable:proofValue("proofDeliverable"),timeline:proofValue("proofTimeline"),cost:proofValue("proofCost"),
+ ownership:proofValue("proofOwnership"),need:proofValue("proofNeed"),investor_permission:proofValue("proofInvestorPermission"),preferred_review:proofValue("proofPreferredReview"),
+ notes:proofValue("proofNotes"),created_at:new Date().toISOString()
+};}
+function formatProof(d){return `IRFTEK PROOF SUBMISSION
+
+Name / organization:
+${d.name || "[not provided]"}
+
+Contact:
+${d.contact || "[not provided]"}
+
+IrfTek track:
+${d.track || "[not provided]"}
+
+Proof type:
+${d.type || "[not provided]"}
+
+What I can prove:
+${d.claim || "[not provided]"}
+
+Deliverable:
+${d.deliverable || "[not provided]"}
+
+Timeline:
+${d.timeline || "[not provided]"}
+
+Cost / compensation expectation:
+${d.cost || "[not provided]"}
+
+Ownership expectation:
+${d.ownership || "[not provided]"}
+
+What I need from IrfTek:
+${d.need || "[not provided]"}
+
+Investor visibility:
+${d.investor_permission || "Founder review only"}
+
+Preferred review path:
+${d.preferred_review || "Founder approval first"}
+
+Extra notes:
+${d.notes || "[none]"}
+
+Generated:
+${d.created_at}
+
+Recipient:
+Irfan Tekinerdogan — Visionary Architect, Founder of IrfTek
+irf.creator+irftek@gmail.com`; }
+function setProofStatus(m){const s=document.getElementById("proofStatus");if(s)s.textContent=m;}
+function generateProofSubmission(){const d=proofData();const o=document.getElementById("proofOutput");if(o)o.textContent=formatProof(d);setProofStatus("Generated");}
+async function copyProofSubmission(){generateProofSubmission();const t=document.getElementById("proofOutput").textContent;try{await navigator.clipboard.writeText(t);setProofStatus("Copied");}catch(e){setProofStatus("Copy manually");}}
+function emailProofSubmission(){generateProofSubmission();const d=proofData();const subject=encodeURIComponent(`IrfTek proof submission — ${d.track || "new proposal"} — ${d.name || "contributor"}`);const body=encodeURIComponent(document.getElementById("proofOutput").textContent);window.location.href=`mailto:irf.creator+irftek@gmail.com?subject=${subject}&body=${body}`;setProofStatus("Email opened");}
+function generateInvestorProofSummary(){const d=proofData();const summary=`IRFTEK INVESTOR-VISIBLE PROOF SUMMARY — PENDING FOUNDER APPROVAL
+
+Track:
+${d.track || "[not provided]"}
+
+Proof type:
+${d.type || "[not provided]"}
+
+Contributor:
+${d.name || "[not provided]"}
+
+Value claim:
+${d.claim || "[not provided]"}
+
+Deliverable:
+${d.deliverable || "[not provided]"}
+
+Timeline:
+${d.timeline || "[not provided]"}
+
+Compensation expectation:
+${d.cost || "[not provided]"}
+
+Investor visibility preference:
+${d.investor_permission || "Founder review only"}
+
+Founder approval status:
+PENDING — not investor-visible until IrfTek approves.
+
+Why this matters:
+This proof may reduce uncertainty for IrfTek by showing buildability, demand, partner access, technical feasibility, cost, culture, research, or investment potential.`;const o=document.getElementById("proofOutput");if(o)o.textContent=summary;setProofStatus("Investor summary");}
+function downloadProofJSON(){const d=proofData();const blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const safe=(d.name||"irftek-proof-submission").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");const a=document.createElement("a");a.href=url;a.download=`${safe||"irftek-proof-submission"}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);setProofStatus("JSON downloaded");}
+function saveProofDraft(){const d=proofData();const drafts=JSON.parse(localStorage.getItem("irftek_proof_drafts")||"[]");drafts.unshift(d);localStorage.setItem("irftek_proof_drafts",JSON.stringify(drafts.slice(0,10)));setProofStatus("Saved locally");renderSavedProofs();}
+function renderSavedProofs(){const list=document.getElementById("savedProofs");if(!list)return;const drafts=JSON.parse(localStorage.getItem("irftek_proof_drafts")||"[]");if(!drafts.length){list.innerHTML="";return;}list.innerHTML=drafts.map((d,i)=>`<div class="saved-item"><div><strong>${d.track||"Track"} · ${d.name||"Unnamed contributor"}</strong><small>${d.type||"Proof"} · ${d.timeline||"No timeline"} · ${new Date(d.created_at).toLocaleString()}</small><small>${(d.claim||"").slice(0,160)}${(d.claim||"").length>160?"...":""}</small></div><button type="button" onclick="loadProofDraft(${i})">Load</button></div>`).join("");}
+function loadProofDraft(i){const drafts=JSON.parse(localStorage.getItem("irftek_proof_drafts")||"[]");const d=drafts[i];if(!d)return;const map={proofName:d.name,proofContact:d.contact,proofTrack:d.track,proofType:d.type,proofClaim:d.claim,proofDeliverable:d.deliverable,proofTimeline:d.timeline,proofCost:d.cost,proofOwnership:d.ownership,proofNeed:d.need,proofInvestorPermission:d.investor_permission,proofPreferredReview:d.preferred_review,proofNotes:d.notes};Object.entries(map).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v||"";});generateProofSubmission();setProofStatus("Draft loaded");}
+function clearProofForm(){["proofName","proofContact","proofClaim","proofDeliverable","proofTimeline","proofCost","proofOwnership","proofNeed","proofNotes"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});const o=document.getElementById("proofOutput");if(o)o.textContent="Fill in the form and select \"Generate submission\".";setProofStatus("Cleared");}
+document.addEventListener("DOMContentLoaded",renderSavedProofs);
+</script>
+</body>
+</html>
