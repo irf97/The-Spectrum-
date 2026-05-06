@@ -1,21 +1,22 @@
 // Hash-based router with named routes.
 
-import { $, $$ } from './util.js';
+import { $ } from './util.js';
 
 const routes = [];
 let activeName = null;
+const DEFAULT_PATH = '/status';
 
 export function defineRoute({ path, name, label, icon, render }) {
   routes.push({ path, name, label, icon, render });
 }
 
 function match(hash) {
-  const clean = (hash || '#/floor').replace(/^#/, '') || '/floor';
+  const clean = (hash || `#${DEFAULT_PATH}`).replace(/^#/, '') || DEFAULT_PATH;
   for (const r of routes) {
     const params = matchPath(r.path, clean);
     if (params) return { route: r, params };
   }
-  return { route: routes[0], params: {} };
+  return { route: routes.find(r => r.path === DEFAULT_PATH) || routes[0], params: {} };
 }
 
 function matchPath(pattern, path) {
@@ -55,7 +56,7 @@ export function start() {
     window.scrollTo(0, 0);
   };
   window.addEventListener('hashchange', onChange);
-  if (!location.hash) location.hash = '#/floor';
+  if (!location.hash) location.hash = `#${DEFAULT_PATH}`;
   onChange();
 }
 
