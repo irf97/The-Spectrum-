@@ -258,9 +258,9 @@ export function render(root) {
       <section class="grid gap-6">
         <header class="flex items-end justify-between gap-3 flex-wrap">
           <div>
-            <p class="h-eyebrow">Live Floor · ${mode === 'dating' ? 'Dating' : 'Networking'} · ${escapeHtml(persona?.name || 'no persona')}</p>
+            <p class="h-eyebrow">Live Floor · ${mode === 'dating' ? 'Dating' : 'Networking'} · ${escapeHtml(persona?.name || 'no alter ego')}</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">The room, right now</h1>
-            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Switch mode in the top-right pill (or <span class="kbd">M</span>); cycle persona with <span class="kbd">[</span>/<span class="kbd">]</span>. <a href="#/privacy" class="hover:underline" style="color:var(--iris-soft)">Edit privacy</a>.</p>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Switch mode in the top-right pill (or <span class="kbd">M</span>); cycle alter ego with <span class="kbd">[</span>/<span class="kbd">]</span>. <a href="#/privacy" class="hover:underline" style="color:var(--iris-soft)">Edit privacy</a>.</p>
           </div>
           <div class="flex flex-wrap gap-1.5">
             <span class="pill pill-mint">Reach ${stats.buckets.reach}</span>

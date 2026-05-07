@@ -105,9 +105,9 @@ export function render(root) {
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <p class="h-eyebrow">Layer 4 · ${escapeHtml(activePersona?.name || 'persona')}</p>
+          <p class="h-eyebrow">Layer 4 · ${escapeHtml(activePersona?.name || 'alter ego')}</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Identity & Anonymity</h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Visibility mode + per-channel reveal tiers. Visibility mode is per-persona; channels and glance settings apply globally.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Visibility mode + per-channel reveal tiers. Visibility mode is per alter ego; channels and glance settings apply globally.</p>
         </div>
         <span class="pill pill-iris">${escapeHtml(VIS_MODES.find(m=>m.key===personaVisMode)?.label || personaVisMode)} · ${escapeHtml(activePersona?.name || '')}</span>
       </header>

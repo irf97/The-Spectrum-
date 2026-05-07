@@ -70,45 +70,119 @@ function paintPills() {
   const mode = store.mode;
   const block = me[mode];
   const persona = store.activePersona();
-  const modeIcon  = mode === 'dating' ? '♥' : '◆';
-  const otherKey  = mode === 'dating' ? 'networking' : 'dating';
-  const otherEnabled = !!me[otherKey]?.enabled;
+  const modeIcon = mode === 'dating' ? '♥' : '◆';
 
   const modePill = $('#mode-pill');
   if (modePill) {
-    modePill.innerHTML = `<span>${modeIcon}</span><span style="font-weight:600">${mode === 'dating' ? 'Dating' : 'Networking'}</span>`;
-    modePill.title = otherEnabled ? `Switch to ${otherKey} (M)` : `${otherKey} profile is off — toggle it on in Profile`;
-    modePill.disabled = !otherEnabled;
-    modePill.style.opacity = otherEnabled ? '1' : '0.5';
-    modePill.style.cursor  = otherEnabled ? 'pointer' : 'not-allowed';
+    modePill.innerHTML = `<span>${modeIcon}</span><span style="font-weight:600">${mode === 'dating' ? 'Dating' : 'Networking'}</span><span class="text-themed-mute">·</span><span class="text-themed-mute" style="font-size:10px">M</span>`;
+    modePill.title = `Switch to ${mode === 'dating' ? 'networking' : 'dating'} (M)`;
     modePill.style.background = `color-mix(in srgb, var(--${mode === 'dating' ? 'rose' : 'mint'}) 14%, transparent)`;
     modePill.style.borderColor = `color-mix(in srgb, var(--${mode === 'dating' ? 'rose' : 'mint'}) 35%, transparent)`;
+    modePill.style.cursor = 'pointer';
   }
 
   const personaPill = $('#persona-pill');
   if (personaPill) {
     if (!persona) {
-      personaPill.innerHTML = `<span class="text-themed-mute">no persona</span>`;
+      personaPill.innerHTML = `<span class="text-themed-mute">no alter ego</span>`;
     } else {
-      const more = block.personas.length > 1 ? `<span class="text-themed-mute">${block.personas.length}</span>` : '';
-      personaPill.innerHTML = `${renderAvatar(persona.avatar)}<span style="font-weight:600">${escapeHtml(persona.name)}</span>${more}`;
+      const count = block.personas.length;
+      const more = count > 1 ? `<span class="text-themed-mute">${count}</span>` : '';
+      personaPill.innerHTML = `${renderAvatar(persona.avatar)}<span style="font-weight:600">${escapeHtml(persona.name)}</span>${more}<span class="text-themed-mute" style="font-size:10px">▾</span>`;
     }
-    personaPill.title = block.personas.length > 1 ? 'Cycle persona ([ / ])' : 'Add personas on the Profile screen';
+    personaPill.title = 'Pick alter ego ([ / ] cycles)';
+    personaPill.style.cursor = 'pointer';
   }
 }
 paintPills();
 bus.on('state:changed', paintPills);
 
+// Mode pill — always toggles. If the target mode is disabled, enable it.
 const modePill = $('#mode-pill');
 if (modePill) modePill.addEventListener('click', () => {
-  // If the target mode is disabled, auto-enable it so the toggle always works.
   const target = store.mode === 'dating' ? 'networking' : 'dating';
   if (!store.profile[target]?.enabled) store.setEnabled(target, true);
   store.toggleMode();
   refresh();
 });
+
+// ----- Alter ego popover ----------------------------------------------------
+
+let popoverEl = null;
+function closeAlterEgoMenu() { if (popoverEl) { popoverEl.remove(); popoverEl = null; } }
+
+function openAlterEgoMenu() {
+  closeAlterEgoMenu();
+  const me = store.profile;
+  const mode = store.mode;
+  const block = me[mode];
+  const personas = block.personas;
+  const activeId = block.activePersonaId;
+
+  popoverEl = document.createElement('div');
+  popoverEl.id = 'alter-ego-menu';
+  popoverEl.style.cssText = 'position:fixed;z-index:60;min-width:240px;padding:6px;border-radius:12px;border:1px solid var(--line);background:var(--panel);box-shadow:0 16px 40px -12px rgba(0,0,0,.5);display:grid;gap:4px';
+
+  const items = personas.map(p => `
+    <button class="card-soft p-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-left" data-pick="${escapeHtml(p.id)}"
+            style="${p.id===activeId?'box-shadow:0 0 0 2px var(--iris)':''}">
+      ${renderAvatar(p.avatar, 22)}
+      <div class="min-w-0">
+        <div class="font-medium text-sm truncate">${escapeHtml(p.name)}</div>
+        <div class="text-[11px] text-themed-mute">${escapeHtml(p.preset || 'custom')} · ${escapeHtml(p.status || '')}</div>
+      </div>
+      ${p.id===activeId?'<span class="text-themed-mute text-xs">active</span>':''}
+    </button>
+  `).join('');
+
+  popoverEl.innerHTML = `
+    <div class="px-2 py-1 text-[11px] text-themed-mute">${mode === 'dating' ? 'Dating' : 'Networking'} · alter egos</div>
+    ${items}
+    <a href="#/profile" class="card-soft p-2 text-sm text-center" style="color:var(--iris-soft)">+ Manage on Profile</a>
+  `;
+  document.body.appendChild(popoverEl);
+
+  // Position under the persona pill
+  const pill = $('#persona-pill');
+  const r = pill.getBoundingClientRect();
+  const top = r.bottom + 6;
+  const right = window.innerWidth - r.right;
+  popoverEl.style.top = `${top}px`;
+  popoverEl.style.right = `${right}px`;
+
+  popoverEl.querySelectorAll('button[data-pick]').forEach(b => b.addEventListener('click', () => {
+    store.setActivePersona(mode, b.dataset.pick);
+    closeAlterEgoMenu();
+    refresh();
+  }));
+  popoverEl.querySelectorAll('a').forEach(a => a.addEventListener('click', closeAlterEgoMenu));
+
+  // Close on outside click / escape
+  setTimeout(() => {
+    document.addEventListener('click', onDocClick, { once: false });
+    document.addEventListener('keydown', onEsc);
+  }, 0);
+}
+function onDocClick(e) {
+  if (!popoverEl) return;
+  if (popoverEl.contains(e.target)) return;
+  if ($('#persona-pill')?.contains(e.target)) return;
+  closeAlterEgoMenu();
+  document.removeEventListener('click', onDocClick);
+  document.removeEventListener('keydown', onEsc);
+}
+function onEsc(e) {
+  if (e.key === 'Escape') {
+    closeAlterEgoMenu();
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onEsc);
+  }
+}
 const personaPill = $('#persona-pill');
-if (personaPill) personaPill.addEventListener('click', () => { store.cyclePersona(1); refresh(); });
+if (personaPill) personaPill.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (popoverEl) closeAlterEgoMenu(); else openAlterEgoMenu();
+});
 
 // ----- Hotkeys --------------------------------------------------------------
 

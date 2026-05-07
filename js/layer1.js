@@ -33,8 +33,8 @@ export function render(root) {
           <p class="h-eyebrow">Layer 1 · ${mode === 'dating' ? 'Dating' : 'Networking'}</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Real-Life Social Status</h1>
           <p class="text-sm text-themed-soft mt-1 max-w-2xl">
-            Status applies to your <b>${escapeHtml(persona?.name || 'active')}</b> persona in ${mode} mode.
-            Switch persona with <span class="kbd">[</span>/<span class="kbd">]</span> · switch mode with <span class="kbd">M</span>.
+            Status applies to your <b>${escapeHtml(persona?.name || 'active')}</b> alter ego in ${mode} mode.
+            Switch alter ego with <span class="kbd">[</span>/<span class="kbd">]</span> · switch mode with <span class="kbd">M</span>.
           </p>
         </div>
         <span class="pill ${titlePill}"><span class="dot"></span> ${escapeHtml(currentKey)}</span>

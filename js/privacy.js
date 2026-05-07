@@ -43,7 +43,7 @@ function axisRow(me, group, label, persona, modeKey) {
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-sm">${escapeHtml(a.label)}</span>
                   ${temp ? `<span class="pill pill-sun" title="Temporary override">⏱ expires ${fmtRel(temp.expiresAt)}</span>` : ''}
-                  ${ovr ? `<span class="pill pill-iris" title="Active persona override">${escapeHtml(persona.name)}: ${escapeHtml(tierMeta(ovr).label)}</span>` : ''}
+                  ${ovr ? `<span class="pill pill-iris" title="Active alter ego override">${escapeHtml(persona.name)}: ${escapeHtml(tierMeta(ovr).label)}</span>` : ''}
                 </div>
                 <div class="text-[11px] text-themed-mute">${escapeHtml(a.copy)}</div>
               </div>
@@ -142,7 +142,7 @@ export function render(root) {
           <div>
             <p class="h-eyebrow">Profile · Privacy · ${mode} · ${escapeHtml(persona?.name || '')}</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Privacy matrix</h1>
-            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Each axis has a base tier (applies always) and a persona override (applies when the named persona is active). Overrides take precedence over base, temporary overrides take precedence over both.</p>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Each axis has a base tier (applies always) and an alter-ego override (applies when the named alter ego is active). Overrides take precedence over base, temporary overrides take precedence over both.</p>
           </div>
           <div class="flex gap-2">
             <a href="#/profile" class="btn">Back to profile</a>

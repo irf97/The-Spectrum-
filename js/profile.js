@@ -78,7 +78,7 @@ function personaEditor(persona, modeKey) {
     <div class="card p-4 grid gap-4">
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="grid gap-1">
-          <span class="text-xs text-themed-mute">Persona name</span>
+          <span class="text-xs text-themed-mute">Alter ego name</span>
           <input class="input" value="${escapeHtml(persona.name)}" data-persona-name="${persona.id}" data-mode="${modeKey}" />
         </label>
         <label class="grid gap-1">
@@ -141,12 +141,12 @@ function modeBlock(modeKey, me) {
     <section class="card p-4 grid gap-4 ${enabled?'':'opacity-60'}">
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-2">
-          <h2 class="font-display font-semibold text-lg">${label} personas</h2>
+          <h2 class="font-display font-semibold text-lg">${label} alter egos</h2>
           <span class="pill ${enabled?accent:'pill-slate'}">${enabled?'On':'Off'}</span>
         </div>
         <div class="flex gap-2 flex-wrap">
           <select class="select w-auto text-sm" data-add-preset="${modeKey}">
-            <option value="">+ New persona…</option>
+            <option value="">+ New alter ego…</option>
             ${PERSONA_PRESETS.map(p => `<option value="${p.key}">${escapeHtml(p.icon)} ${escapeHtml(p.label)}</option>`).join('')}
           </select>
           <button class="btn btn-sm" data-toggle-mode-enabled="${modeKey}">${enabled?'Disable':'Enable'} mode</button>
@@ -170,7 +170,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Profile</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">${escapeHtml(me.name)} <span class="text-themed-mute">@${escapeHtml(me.alias)}</span></h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Two modes (Dating / Networking). Each holds personas — alter egos for different settings, moods, days. The top-right pill cluster switches mode and cycles personas.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Two modes (Dating / Networking). Each holds alter egos for different settings, moods, days. The top-right pill cluster switches mode and picks alter ego.</p>
         </div>
         <div class="flex gap-2">
           <a href="#/privacy" class="btn btn-primary">Privacy matrix</a>
@@ -285,10 +285,10 @@ export function render(root) {
   }));
   $$('button[data-delete-persona]', root).forEach(b => b.addEventListener('click', () => {
     if (store.profile[b.dataset.mode].personas.length <= 1) {
-      alert('Each mode keeps at least one persona. Add another first, then delete.');
+      alert('Each mode keeps at least one alter ego. Add another first, then delete.');
       return;
     }
-    if (!confirm('Delete this persona?')) return;
+    if (!confirm('Delete this alter ego?')) return;
     store.deletePersona(b.dataset.mode, b.dataset.deletePersona);
     render(root);
   }));
