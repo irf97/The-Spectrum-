@@ -87,9 +87,24 @@ function genderSelector(current) {
 
 export function render(root) {
   const me = store.profile;
-  const prefs = me.prefs;
+  if (!me.modes?.dating) {
+    root.innerHTML = `
+      <section class="grid gap-4">
+        <header>
+          <p class="h-eyebrow">Layer 2 · Dating</p>
+          <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Physical Match</h1>
+        </header>
+        <div class="card p-4 grid gap-2">
+          <p class="text-themed-soft">Your dating profile is currently turned off. Turn it on to score people on physical and lifestyle attributes. Networking match lives on the <a href="#/alignment" class="hover:underline" style="color:var(--iris-soft)">Alignment</a> page instead.</p>
+          <a href="#/profile" class="btn btn-primary w-fit">Open profile</a>
+        </div>
+      </section>`;
+    return;
+  }
+  const prefs = me.dating.prefs;
   const fields = fieldsFor(prefs.gender || 'any');
   const candidates = SAMPLE_PEOPLE
+    .filter(p => p.modes?.dating)
     .map(p => ({ p, r: scoreCandidate(p, prefs) }))
     .sort((a,b) => b.r.pct - a.r.pct);
 
@@ -97,9 +112,9 @@ export function render(root) {
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <p class="h-eyebrow">Layer 2</p>
+          <p class="h-eyebrow">Layer 2 · Dating</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Physical Match Percentage</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Hard non-negotiables, weighted preferences, and excluded values collapse into a single physical fit score per person. Choose who you're looking for first; the option set adapts.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Hard non-negotiables, weighted preferences, and excluded values collapse into a single physical fit score per person. Choose who you're looking for first; the option set adapts.</p>
         </div>
         ${bucketLegend()}
       </header>
@@ -121,26 +136,26 @@ export function render(root) {
   `;
 
   $$('button[data-pref-gender]', root).forEach(b => b.addEventListener('click', () => {
-    const next = setGender(store.profile.prefs, b.dataset.prefGender);
-    store.setProfile({ prefs: next });
+    const next = setGender(store.profile.dating.prefs, b.dataset.prefGender);
+    store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
     render(root);
   }));
 
   $$('div[data-field]', root).forEach(box => {
     const field = box.dataset.field;
     box.querySelector('input[data-role="weight"]').addEventListener('input', (e) => {
-      const next = setWeight(store.profile.prefs, field, Number(e.target.value));
-      store.setProfile({ prefs: next });
+      const next = setWeight(store.profile.dating.prefs, field, Number(e.target.value));
+      store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
       render(root);
     });
     box.querySelectorAll('button[data-role="opt"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const v = btn.dataset.opt;
-        let next = store.profile.prefs;
+        let next = store.profile.dating.prefs;
         if (e.altKey) next = toggleExcluded(next, field, v);
         else if (e.shiftKey) next = toggleFilter(next, field, v);
         else next = setTarget(next, field, next.targets?.[field] === v ? '' : v);
-        store.setProfile({ prefs: next });
+        store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
         render(root);
       });
     });

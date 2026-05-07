@@ -17,45 +17,43 @@ function statusCard(status, currentKey, mode) {
 
 export function render(root) {
   const me = store.profile;
+  const dOn = !!me.modes?.dating;
+  const nOn = !!me.modes?.networking;
   root.innerHTML = `
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <p class="h-eyebrow">Layer 1</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Real-Life Social Status</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Two real-life spectrums — Dating and Networking. The status you set drives what every other layer filters for, and how others see you.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Two independent profiles. Each can be on or off. The status you set per-mode drives how that mode filters for and presents you.</p>
         </div>
         <div class="flex gap-2 items-center">
-          <span class="pill pill-iris"><span class="dot"></span> Intent: ${escapeHtml(me.intent)}</span>
-          <select id="intent" class="select w-auto text-sm">
-            <option value="dating"     ${me.intent==='dating'?'selected':''}>Dating</option>
-            <option value="networking" ${me.intent==='networking'?'selected':''}>Networking</option>
-            <option value="both"       ${me.intent==='both'?'selected':''}>Both</option>
-          </select>
+          <button class="pill ${dOn?'pill-rose':'pill-slate'}" data-toggle="dating">${dOn?'Dating · on':'Dating · off'}</button>
+          <button class="pill ${nOn?'pill-mint':'pill-slate'}" data-toggle="networking">${nOn?'Networking · on':'Networking · off'}</button>
         </div>
       </header>
 
       <div class="grid lg:grid-cols-2 gap-6">
-        <div class="card p-4 sm:p-5">
+        <div class="card p-4 sm:p-5 ${dOn?'':'opacity-50'}">
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="font-display font-semibold text-lg">Dating</h2>
-              <p class="text-xs text-slate-400">${escapeHtml(STATUS_DATING.find(s=>s.key===me.status.dating)?.desc || '')}</p>
+              <p class="text-xs text-themed-mute">${escapeHtml(STATUS_DATING.find(s=>s.key===me.status.dating)?.desc || '')}</p>
             </div>
-            <span class="pill pill-rose"><span class="dot"></span> ${escapeHtml(me.status.dating)}</span>
+            <span class="pill ${dOn?'pill-rose':'pill-slate'}"><span class="dot"></span> ${escapeHtml(me.status.dating)}</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${STATUS_DATING.map(s => statusCard(s, me.status.dating, 'dating')).join('')}
           </div>
         </div>
 
-        <div class="card p-4 sm:p-5">
+        <div class="card p-4 sm:p-5 ${nOn?'':'opacity-50'}">
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="font-display font-semibold text-lg">Networking</h2>
-              <p class="text-xs text-slate-400">${escapeHtml(STATUS_NETWORKING.find(s=>s.key===me.status.networking)?.desc || '')}</p>
+              <p class="text-xs text-themed-mute">${escapeHtml(STATUS_NETWORKING.find(s=>s.key===me.status.networking)?.desc || '')}</p>
             </div>
-            <span class="pill pill-mint"><span class="dot"></span> ${escapeHtml(me.status.networking)}</span>
+            <span class="pill ${nOn?'pill-mint':'pill-slate'}"><span class="dot"></span> ${escapeHtml(me.status.networking)}</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${STATUS_NETWORKING.map(s => statusCard(s, me.status.networking, 'networking')).join('')}
@@ -77,10 +75,12 @@ export function render(root) {
     </section>
   `;
 
-  $('#intent', root).addEventListener('change', (e) => {
-    store.setProfile({ intent: e.target.value });
+  $$('button[data-toggle]', root).forEach(b => b.addEventListener('click', () => {
+    const mode = b.dataset.toggle;
+    const cur = !!store.profile.modes?.[mode];
+    store.setProfile({ modes: { ...store.profile.modes, [mode]: !cur } });
     render(root);
-  });
+  }));
 
   $$('button[data-status]', root).forEach(b => b.addEventListener('click', () => {
     const mode = b.dataset.mode, key = b.dataset.status;

@@ -27,6 +27,27 @@ function migrate(s) {
   const base = blank();
   const merged = { ...base, ...s, profile: { ...base.profile, ...(s.profile || {}) } };
   const p = merged.profile;
+
+  // v3 → v4: split into me.dating + me.networking, replace `intent` with `modes`.
+  if (p.self && !p.dating) {
+    p.dating = { self: p.self, prefs: p.prefs || base.profile.dating.prefs };
+    delete p.self; delete p.prefs;
+  }
+  p.dating = { ...base.profile.dating, ...(p.dating || {}) };
+  p.dating.self  = { ...base.profile.dating.self,  ...(p.dating.self  || {}) };
+  p.dating.prefs = { ...base.profile.dating.prefs, ...(p.dating.prefs || {}) };
+
+  p.networking = { ...base.profile.networking, ...(p.networking || {}) };
+  p.networking.self  = { ...base.profile.networking.self,  ...(p.networking.self  || {}) };
+  p.networking.prefs = { ...base.profile.networking.prefs, ...(p.networking.prefs || {}) };
+
+  if (!p.modes) {
+    if (p.intent === 'dating')          p.modes = { dating: true,  networking: false };
+    else if (p.intent === 'networking') p.modes = { dating: false, networking: true  };
+    else                                 p.modes = { dating: true,  networking: true  };
+  }
+  delete p.intent;
+
   p.privacy = p.privacy || {};
   p.privacy.matrix = { ...defaultMatrix(), ...(p.privacy.matrix || {}) };
   p.privacy.temp   = p.privacy.temp || {};
@@ -163,7 +184,7 @@ class Store {
         const seed = indexSeed.get(id);
         const cls = classify({ dist: p.dist, optIn: p.optIn, stable: p.stable, signal: p.signal });
         const shared = sharedKeys(me.hobbies, seed?.hobbies);
-        const sc = seed ? scoreCandidate(seed, me.prefs) : { pct: 0 };
+        const sc = seed && me.modes?.dating ? scoreCandidate(seed, me.dating.prefs) : { pct: 0 };
         const ctx = {
           muted: !!muted[id],
           zoneKey: cls.zone.key,

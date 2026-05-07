@@ -60,7 +60,7 @@ function previewPanel(me, world, muted, reveals) {
   for (const p of SAMPLE_PEOPLE) {
     const w = world[p.id] || {};
     const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted:!!muted[p.id] });
-    const sc = scoreCandidate(p, me.prefs);
+    const sc = me.modes?.dating ? scoreCandidate(p, me.dating.prefs) : { pct: 0 };
     const ctx = {
       muted: !!muted[p.id],
       zoneKey: cls.zone.key,

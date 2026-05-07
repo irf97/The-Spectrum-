@@ -1,8 +1,9 @@
 // Person detail page — every layer's view of a single individual.
 // Honours the privacy matrix when displaying name/photo and gating reveal/message buttons.
 
-import { SAMPLE_PEOPLE, STATUS_DATING, STATUS_NETWORKING, PHYSICAL_FIELDS } from './data.js';
+import { SAMPLE_PEOPLE, STATUS_DATING, STATUS_NETWORKING, PHYSICAL_FIELDS, MATCH_BUCKETS } from './data.js';
 import { scoreCandidate } from './engines/match.js';
+import { alignmentCandidate } from './engines/alignment.js';
 import { classify } from './engines/proximity.js';
 import { resolveView } from './engines/identity.js';
 import { progress, MANUAL_DELTAS } from './engines/rapport.js';
@@ -24,19 +25,27 @@ export function render(root, params) {
   const muted = !!store.muted[p.id];
   const revealed = !!store.reveals[p.id];
 
-  const sc  = scoreCandidate(p, me.prefs);
+  const datingShared     = !!me.modes?.dating     && !!p.modes?.dating;
+  const networkingShared = !!me.modes?.networking && !!p.modes?.networking;
+  const unknownBucket = MATCH_BUCKETS.find(b => b.key === 'unknown');
+  const sc  = datingShared     ? scoreCandidate(p, me.dating.prefs)        : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
+  const al  = networkingShared ? alignmentCandidate(p, me.networking.prefs) : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
+  const primaryPct = Math.max(datingShared ? sc.pct : 0, networkingShared ? al.pct : 0);
   const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted });
   const ctx = {
     muted,
     zoneKey: cls.zone.key,
-    matchPct: sc.pct,
+    matchPct: primaryPct,
     viewerReveal: revealed,
     subjectReveal: revealed, // simulation: treat their reveal as mirroring yours
   };
-  const view = resolveView(me, p, sc.pct, { reveals: store.reveals, theirReveal: revealed, muted, zoneKey: cls.zone.key });
+  const view = resolveView(me, p, primaryPct, { reveals: store.reveals, theirReveal: revealed, muted, zoneKey: cls.zone.key });
   const rel = relate(me.hobbies, p.hobbies);
   const pr = progress(rapport.points || 0);
-  const status = (p.intent === 'networking' ? STATUS_NETWORKING : STATUS_DATING).find(s => s.key === p.status);
+  const pIsDating     = !!p.modes?.dating;
+  const pIsNetworking = !!p.modes?.networking;
+  const datingStatus     = STATUS_DATING.find(s => s.key === p.status);
+  const networkingStatus = STATUS_NETWORKING.find(s => s.key === p.status);
 
   const showsName = canSee(me, p, 'showName', ctx);
   const showsHobbies = canSee(me, p, 'showHobbies', ctx);
@@ -63,8 +72,10 @@ export function render(root, params) {
           <h1 class="font-display text-2xl font-semibold">${headerLabel}</h1>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${escapeHtml(cls.zone.label)} · ${(w.dist||0).toFixed(1)}m</span>
-            <span class="pill" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>
-            ${showsStatus && status ? `<span class="pill pill-iris">${escapeHtml(status.icon)} ${escapeHtml(status.label)}</span>` : ''}
+            ${datingShared ? `<span class="pill" title="Match" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">♥ ${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>` : ''}
+            ${networkingShared ? `<span class="pill" title="Alignment" style="color:${al.bucket.swatch};border-color:${al.bucket.swatch}55">◆ ${escapeHtml(al.bucket.label)} · ${pct(al.pct)}</span>` : ''}
+            ${showsStatus && pIsDating && datingStatus ? `<span class="pill pill-rose">${escapeHtml(datingStatus.icon)} dating · ${escapeHtml(datingStatus.label)}</span>` : ''}
+            ${showsStatus && pIsNetworking && networkingStatus ? `<span class="pill pill-mint">${escapeHtml(networkingStatus.icon)} net · ${escapeHtml(networkingStatus.label)}</span>` : ''}
             <span class="pill" style="color:${pr.tier.color};border-color:${pr.tier.color}55">${escapeHtml(pr.tier.label)}</span>
             ${showsHobbies && rel.teacher ? `<span class="pill pill-sun">🎓 Teacher in ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
             ${showsHobbies && rel.student ? `<span class="pill pill-mint">📚 Student in ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
@@ -140,22 +151,41 @@ export function render(root, params) {
           </div>` : `<p class="text-xs text-slate-500">Hidden by privacy (showHobbies: ${escapeHtml(tierMeta(effectiveTier(p,'showHobbies')).label)}).</p>`}
         </div>
 
+        ${datingShared ? `
         <div class="card p-4 grid gap-3 lg:col-span-2">
-          <h2 class="font-display font-semibold text-lg">Match dimensions</h2>
+          <h2 class="font-display font-semibold text-lg">♥ Match dimensions <span class="text-xs text-themed-mute font-normal">(dating)</span></h2>
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             ${sc.dimensions.map(d => `
               <div class="card-soft p-3 grid gap-1.5">
                 <div class="flex items-center justify-between">
                   <div class="font-medium text-sm">${escapeHtml(d.label)}</div>
-                  <div class="text-xs text-slate-500">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
+                  <div class="text-xs text-themed-mute">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
                 </div>
-                <div class="text-[11px] text-slate-500">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
+                <div class="text-[11px] text-themed-mute">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
                 <div class="bar"><i style="width:${(d.score==null?0:d.score)*100}%"></i></div>
               </div>`).join('')}
           </div>
-          ${sc.blockedBy.length ? `<div class="text-xs text-rose-400">Filter blocked: ${sc.blockedBy.join(', ')}</div>` : ''}
-          ${sc.excludedHits.length ? `<div class="text-xs text-rose-400">Excluded hits: ${sc.excludedHits.join(', ')}</div>` : ''}
-        </div>
+          ${sc.blockedBy.length ? `<div class="text-xs" style="color:var(--rose)">Filter blocked: ${sc.blockedBy.join(', ')}</div>` : ''}
+          ${sc.excludedHits.length ? `<div class="text-xs" style="color:var(--rose)">Excluded hits: ${sc.excludedHits.join(', ')}</div>` : ''}
+        </div>` : ''}
+
+        ${networkingShared ? `
+        <div class="card p-4 grid gap-3 lg:col-span-2">
+          <h2 class="font-display font-semibold text-lg">◆ Alignment dimensions <span class="text-xs text-themed-mute font-normal">(networking)</span></h2>
+          <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            ${al.dimensions.map(d => `
+              <div class="card-soft p-3 grid gap-1.5">
+                <div class="flex items-center justify-between">
+                  <div class="font-medium text-sm">${escapeHtml(d.label)}</div>
+                  <div class="text-xs text-themed-mute">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
+                </div>
+                <div class="text-[11px] text-themed-mute">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
+                <div class="bar"><i style="width:${(d.score==null?0:d.score)*100}%"></i></div>
+              </div>`).join('')}
+          </div>
+          ${al.blockedBy.length ? `<div class="text-xs" style="color:var(--rose)">Filter blocked: ${al.blockedBy.join(', ')}</div>` : ''}
+          ${al.excludedHits.length ? `<div class="text-xs" style="color:var(--rose)">Excluded hits: ${al.excludedHits.join(', ')}</div>` : ''}
+        </div>` : ''}
 
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Proximity</h2>

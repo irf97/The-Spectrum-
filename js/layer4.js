@@ -41,7 +41,8 @@ function channelRow(ch, identity) {
 }
 
 function reveal(p, viewer, opts) {
-  const r = scoreCandidate(p, viewer.prefs);
+  const datingShared = !!viewer.modes?.dating && !!p.modes?.dating;
+  const r = datingShared ? scoreCandidate(p, viewer.dating.prefs) : { pct: 0 };
   const view = resolveView(viewer, p, r.pct, opts);
   const visual = (() => {
     switch (view.shows) {

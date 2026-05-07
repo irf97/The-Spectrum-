@@ -4,6 +4,7 @@
 
 import { SAMPLE_PEOPLE, PROX_ZONES, MATCH_BUCKETS, STATUS_DATING, STATUS_NETWORKING } from './data.js';
 import { scoreCandidate } from './engines/match.js';
+import { alignmentCandidate } from './engines/alignment.js';
 import { classify } from './engines/proximity.js';
 import { resolveView } from './engines/identity.js';
 import { progress } from './engines/rapport.js';
@@ -20,11 +21,29 @@ const VIEW_MODES = [
   { key:'proximity', label:'Proximity', desc:'Grouped by 10m zone (Reach · Nearby · Room · Passing).' },
 ];
 
+const MODE_FILTERS = [
+  { key:'both',       label:'Both' },
+  { key:'dating',     label:'Dating' },
+  { key:'networking', label:'Networking' },
+];
+
 function getViewMode() {
   const ui = store.getUI('floor', { viewMode: 'floor' });
   return VIEW_MODES.some(v => v.key === ui.viewMode) ? ui.viewMode : 'floor';
 }
 function setViewMode(v) { store.setUI('floor', { viewMode: v }); }
+
+function getFloorMode(me) {
+  const ui = store.getUI('floor', { floorMode: 'both' });
+  let m = MODE_FILTERS.some(x => x.key === ui.floorMode) ? ui.floorMode : 'both';
+  // Coerce to a mode the user actually has on.
+  const dOn = !!me.modes?.dating, nOn = !!me.modes?.networking;
+  if (m === 'dating'     && !dOn) m = nOn ? 'networking' : 'both';
+  if (m === 'networking' && !nOn) m = dOn ? 'dating'     : 'both';
+  if (m === 'both'       && !dOn && !nOn) m = 'both';
+  return m;
+}
+function setFloorMode(m) { store.setUI('floor', { floorMode: m }); }
 
 function privacyCtx(p, sc, cls, reveals, muted) {
   return {
@@ -36,29 +55,62 @@ function privacyCtx(p, sc, cls, reveals, muted) {
   };
 }
 
-function enrich(me, world, muted, rapport, reveals) {
+function enrich(me, world, muted, rapport, reveals, floorMode) {
+  // Per-mode availability
+  const myDating     = !!me.modes?.dating;
+  const myNetworking = !!me.modes?.networking;
   return SAMPLE_PEOPLE.map(p => {
     const w = world[p.id] || {};
     const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted:!!muted[p.id] });
-    const sc  = scoreCandidate(p, me.prefs);
+    const datingShared     = myDating     && !!p.modes?.dating;
+    const networkingShared = myNetworking && !!p.modes?.networking;
+    const sc  = datingShared     ? scoreCandidate(p, me.dating.prefs)        : { pct: 0, bucket: MATCH_BUCKETS.find(b=>b.key==='unknown') };
+    const al  = networkingShared ? alignmentCandidate(p, me.networking.prefs) : { pct: 0, bucket: MATCH_BUCKETS.find(b=>b.key==='unknown') };
     const rel = relate(me.hobbies, p.hobbies);
     const r   = rapport[p.id] || { points:0 };
     const rp  = progress(r.points || 0);
     const hobbyBoost = rel.headline ? 0.2 + 0.6 * rel.headline.strength : 0;
     const proxBoost  = cls.zone.key === 'reach' ? 1.2 : cls.zone.key === 'nearby' ? 1 : cls.zone.key === 'room' ? 0.6 : cls.zone.key === 'passing' ? 0.3 : 0;
     const repBoost   = Math.max(0, Math.min(1, r.points / 2000));
-    const score = (sc.pct * 0.55) + (proxBoost * 0.2) + (hobbyBoost * 0.15) + (repBoost * 0.1);
-    const ctx = privacyCtx(p, sc, cls, reveals, muted);
-    return { p, w, cls, sc, rel, r, rp, score, ctx };
+
+    // Pick the relevant match% per the active floor mode.
+    let matchPct = 0, primary = sc;
+    if (floorMode === 'dating')          { matchPct = datingShared ? sc.pct : 0; primary = sc; }
+    else if (floorMode === 'networking') { matchPct = networkingShared ? al.pct : 0; primary = al; }
+    else { // both — best of available
+      const candidates = [];
+      if (datingShared)     candidates.push(sc.pct);
+      if (networkingShared) candidates.push(al.pct);
+      matchPct = candidates.length ? Math.max(...candidates) : 0;
+      primary = (datingShared && (!networkingShared || sc.pct >= al.pct)) ? sc : al;
+    }
+    const score = (matchPct * 0.55) + (proxBoost * 0.2) + (hobbyBoost * 0.15) + (repBoost * 0.1);
+    const ctx = privacyCtx(p, primary, cls, reveals, muted);
+    return { p, w, cls, sc, al, primary, matchPct, datingShared, networkingShared, rel, r, rp, score, ctx };
   });
 }
 
-function visibleRows(me, all) {
-  const myStatus = me.intent === 'networking' ? me.status.networking : me.status.dating;
+function modeOverlap(me, p, floorMode) {
+  const dOn = !!me.modes?.dating     && !!p.modes?.dating;
+  const nOn = !!me.modes?.networking && !!p.modes?.networking;
+  if (floorMode === 'dating')     return dOn;
+  if (floorMode === 'networking') return nOn;
+  return dOn || nOn;
+}
+
+function visibleRows(me, all, floorMode) {
+  const datingStatus     = me.status.dating;
+  const networkingStatus = me.status.networking;
   return all
     .filter(x => x.cls.zone.key !== 'hidden' && x.cls.zone.key !== 'outrange' && x.cls.zone.key !== 'muted' && x.cls.zone.key !== 'unknown')
+    .filter(x => modeOverlap(me, x.p, floorMode))
     .filter(x => canSee(me, x.p, 'showOnFloor', x.ctx))
-    .filter(x => !((myStatus==='selective'||myStatus==='focused') && x.sc.pct < 0.5));
+    .filter(x => {
+      // Selective/focused on the active mode raises the bar.
+      if (floorMode === 'dating'     && (datingStatus==='selective')        && x.matchPct < 0.5) return false;
+      if (floorMode === 'networking' && (networkingStatus==='focused' || networkingStatus==='selective') && x.matchPct < 0.5) return false;
+      return true;
+    });
 }
 
 function summaryStats(visible) {
@@ -66,8 +118,8 @@ function summaryStats(visible) {
   let strong = 0, ideal = 0;
   for (const x of visible) {
     if (buckets[x.cls.zone.key] !== undefined) buckets[x.cls.zone.key]++;
-    if (x.sc.bucket.key === 'strong') strong++;
-    if (x.sc.bucket.key === 'ideal') ideal++;
+    if (x.primary.bucket.key === 'strong') strong++;
+    if (x.primary.bucket.key === 'ideal') ideal++;
   }
   return { buckets, strong, ideal };
 }
@@ -75,19 +127,16 @@ function summaryStats(visible) {
 // ----- View: Floor (radial) --------------------------------------------------
 
 function dotFor(me, x) {
-  const { p, w, cls, sc, ctx } = x;
+  const { p, w, cls, primary, matchPct, ctx } = x;
   if (cls.zone.key === 'outrange' || cls.zone.key === 'unknown') return '';
-  const myStatus = me.intent === 'networking' ? me.status.networking : me.status.dating;
-  if (myStatus === 'closed' || myStatus === 'offline' || myStatus === 'invisible') return '';
-  if ((myStatus === 'selective' || myStatus === 'focused') && sc.pct < 0.5) return '';
   if (!canSee(me, p, 'showOnFloor', ctx)) return '';
-  const view = resolveView(me, p, sc.pct, { reveals: store.reveals, theirReveal: !!store.reveals[p.id], muted: store.muted[p.id], zoneKey: cls.zone.key });
+  const view = resolveView(me, p, matchPct, { reveals: store.reveals, theirReveal: !!store.reveals[p.id], muted: store.muted[p.id], zoneKey: cls.zone.key });
   const showsName = (view.shows === 'photo' || view.shows === 'reveal') && canSee(me, p, 'showName', ctx);
   const left = ((w.x||0) + 12) / 24 * 92 + 4;
   const top  = ((w.y||0) + 12) / 24 * 92 + 4;
-  const matchClass = sc.bucket.key === 'ideal' ? 'match-ideal'
-                  : sc.bucket.key === 'strong' ? 'match-strong'
-                  : sc.bucket.key === 'moderate' ? 'match-moderate' : '';
+  const matchClass = primary.bucket.key === 'ideal' ? 'match-ideal'
+                  : primary.bucket.key === 'strong' ? 'match-strong'
+                  : primary.bucket.key === 'moderate' ? 'match-moderate' : '';
   const muteClass = store.muted[p.id] ? 'muted' : '';
   const label = showsName ? initials(p.name)
               : view.shows === 'avatar' ? (p.alias||'').slice(0,2).toUpperCase()
@@ -99,7 +148,7 @@ function dotFor(me, x) {
   return `
     <a href="#/people/${p.id}"
        class="person ${matchClass} ${muteClass}"
-       title="${escapeHtml(labelTxt)} · ${cls.zone.label} · ${sc.bucket.label}"
+       title="${escapeHtml(labelTxt)} · ${cls.zone.label} · ${primary.bucket.label}"
        style="left:${left}%;top:${top}%;background:${bg};${filter}">${escapeHtml(label)}</a>`;
 }
 
@@ -109,9 +158,15 @@ function rings() {
 }
 
 function shortRow(me, x) {
-  const { p, sc, cls, rel, r, rp, score, ctx } = x;
+  const { p, sc, al, datingShared, networkingShared, cls, rel, r, rp, score, ctx } = x;
   const showsName = canSee(me, p, 'showName', ctx);
   const showsHobbies = canSee(me, p, 'showHobbies', ctx);
+  const datingPill = datingShared
+    ? `<span class="pill" title="Match" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">♥ ${pct(sc.pct)}</span>`
+    : '';
+  const alignPill = networkingShared
+    ? `<span class="pill" title="Alignment" style="color:${al.bucket.swatch};border-color:${al.bucket.swatch}55">◆ ${pct(al.pct)}</span>`
+    : '';
   return `
     <a href="#/people/${p.id}" class="card-soft p-3 grid gap-1.5 hover:border-iris-500/60">
       <div class="flex items-center gap-3">
@@ -120,15 +175,16 @@ function shortRow(me, x) {
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-medium truncate">${escapeHtml(showsName ? p.name : '@'+p.alias)}</span>
             <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${cls.zone.label}</span>
-            <span class="pill" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">${sc.bucket.label} · ${pct(sc.pct)}</span>
+            ${datingPill}
+            ${alignPill}
             ${showsHobbies && rel.teacher ? `<span class="pill pill-sun">🎓 teach: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
             ${showsHobbies && rel.student ? `<span class="pill pill-mint">📚 learn: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
           </div>
-          <div class="text-[11px] text-slate-500 mt-0.5">${rp.tier.label} · ${Math.round(r.points||0)} pts</div>
+          <div class="text-[11px] text-themed-mute mt-0.5">${rp.tier.label} · ${Math.round(r.points||0)} pts</div>
         </div>
         <div class="text-right">
           <div class="font-display font-semibold">${pct(score)}</div>
-          <div class="text-[10px] text-slate-500">combined</div>
+          <div class="text-[10px] text-themed-mute">combined</div>
         </div>
       </div>
       <div class="bar"><i style="width:${(score*100).toFixed(0)}%"></i></div>
@@ -210,6 +266,20 @@ function tabBar(active) {
     </div>`;
 }
 
+function modeBar(me, active) {
+  const dOn = !!me.modes?.dating, nOn = !!me.modes?.networking;
+  return `
+    <div class="flex items-center gap-1 flex-wrap" role="tablist" aria-label="Floor mode filter">
+      ${MODE_FILTERS.map(m => {
+        const disabled =
+          (m.key === 'dating'     && !dOn) ||
+          (m.key === 'networking' && !nOn) ||
+          (m.key === 'both'       && !dOn && !nOn);
+        return `<button class="tab" data-fm="${m.key}" aria-current="${m.key===active?'page':'false'}" ${disabled?'disabled style="opacity:.4;cursor:not-allowed"':''}>${escapeHtml(m.label)}</button>`;
+      }).join('')}
+    </div>`;
+}
+
 // ----- Render ---------------------------------------------------------------
 
 export function render(root) {
@@ -222,8 +292,9 @@ export function render(root) {
     }
     const me = store.profile;
     const vm = getViewMode();
-    const all = enrich(me, store.world, store.muted, store.rapport, store.reveals);
-    const visible = visibleRows(me, all);
+    const fm = getFloorMode(me);
+    const all = enrich(me, store.world, store.muted, store.rapport, store.reveals, fm);
+    const visible = visibleRows(me, all, fm);
     const stats = summaryStats(visible);
 
     let body = '';
@@ -237,7 +308,7 @@ export function render(root) {
           <div>
             <p class="h-eyebrow">Live Floor · 10m bubble</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">The room, right now</h1>
-            <p class="text-sm text-slate-400 mt-1 max-w-2xl">All five layers integrated inside a 10m venue bubble — with privacy matrix gates applied. <a href="#/privacy" class="text-iris-400 hover:underline">Edit privacy</a>.</p>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">All five layers integrated inside a 10m venue bubble — with privacy matrix gates applied. <a href="#/privacy" class="hover:underline" style="color:var(--iris-soft)">Edit privacy</a>.</p>
           </div>
           <div class="flex flex-wrap gap-1.5">
             <span class="pill pill-mint">Reach ${stats.buckets.reach}</span>
@@ -251,6 +322,10 @@ export function render(root) {
 
         <div class="flex items-center justify-between gap-3 flex-wrap">
           ${tabBar(vm)}
+          <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-[11px] text-themed-mute">Mode</span>
+            ${modeBar(me, fm)}
+          </div>
           <div class="flex gap-2">
             <a href="#/profile" class="btn btn-sm">Profile</a>
             <a href="#/privacy" class="btn btn-sm">Privacy</a>
@@ -263,6 +338,11 @@ export function render(root) {
 
     $$('button[data-vm]', root).forEach(b => b.addEventListener('click', () => {
       setViewMode(b.dataset.vm);
+      paint();
+    }));
+    $$('button[data-fm]', root).forEach(b => b.addEventListener('click', () => {
+      if (b.disabled) return;
+      setFloorMode(b.dataset.fm);
       paint();
     }));
   }

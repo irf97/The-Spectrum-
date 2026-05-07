@@ -24,6 +24,29 @@ export const STATUS_NETWORKING = [
   { key: 'offline',     label: 'Offline',     icon: '⏸',  desc: 'Not networking right now.' },
 ];
 
+// ---------- Networking dimensions (Layer 2 / alignment) ---------------------
+// Ambitions, posture, expertise — explicitly NOT physical, NOT engineering-narrow.
+// "Way of thinking" is the operating mind-set; "execution style" is how you ship.
+
+export const NETWORKING_FIELDS = [
+  { key:'ambition',   label:'Ambition horizon', weight: 0.7,
+    options: ['6 months','2 years','10 years','Lifetime'] },
+  { key:'stage',      label:'Stage focus',      weight: 0.7,
+    options: ['Exploring','Building','Scaling','Harvesting','Advising'] },
+  { key:'role',       label:'Role posture',     weight: 0.6,
+    options: ['Founder','Operator','Specialist','Generalist','Connector','Capital'] },
+  { key:'thinking',   label:'Way of thinking',  weight: 0.5,
+    options: ['First-principles','Pattern-match','Systems','Narrative','Quantitative','Intuitive'] },
+  { key:'expertise',  label:'Expertise depth',  weight: 0.6,
+    options: ['Curious','Practitioner','Expert','Authority'] },
+  { key:'execution',  label:'Execution style',  weight: 0.5,
+    options: ['Deliberate','Iterative','Ship-then-fix','Research-heavy'] },
+  { key:'domain',     label:'Domain',           weight: 0.4,
+    options: ['Health','Finance','Media','Climate','Infra','Creative','Social','Education','Frontier','Public sector'] },
+  { key:'lookingFor', label:'Looking for',      weight: 0.4,
+    options: ['Intros','Capital','Hires','Peers','Mentors','Students','Deals'] },
+];
+
 // ---------- Themes -----------------------------------------------------------
 // Aligned with GitHub Pages' supported Jekyll themes. The `theme:` directive
 // in _config.yml styles README rendering; these match the app to those
@@ -296,34 +319,77 @@ const PEOPLE_SEED = [
     hobbies:[{key:'writing',skill:80,role:'peers'},{key:'languages',skill:65,role:'practicing'},{key:'photography',skill:38,role:'student'}], dist:5.8, stable:true,  optIn:true,  signal:0.7 },
 ];
 
-export const SAMPLE_PEOPLE = PEOPLE_SEED;
+// Each person's networking profile is deterministic from their id so
+// reloads stay stable. Some have only dating, some only networking, some both.
+const NETWORKING_OVERLAY = {
+  p1:  { modes:{dating:true, networking:true},  networking:{ ambition:'2 years',  stage:'Building',   role:'Operator',    thinking:'First-principles', expertise:'Practitioner', execution:'Iterative',     domain:'Creative',      lookingFor:'Peers'    } },
+  p2:  { modes:{dating:false, networking:true}, networking:{ ambition:'10 years', stage:'Building',   role:'Founder',     thinking:'Systems',          expertise:'Expert',       execution:'Ship-then-fix', domain:'Infra',         lookingFor:'Capital'  } },
+  p3:  { modes:{dating:true, networking:false}, networking:null },
+  p4:  { modes:{dating:true, networking:true},  networking:{ ambition:'2 years',  stage:'Building',   role:'Generalist',  thinking:'Narrative',        expertise:'Practitioner', execution:'Iterative',     domain:'Creative',      lookingFor:'Hires'    } },
+  p5:  { modes:{dating:true, networking:true},  networking:{ ambition:'10 years', stage:'Scaling',    role:'Operator',    thinking:'Pattern-match',    expertise:'Expert',       execution:'Deliberate',    domain:'Finance',       lookingFor:'Mentors'  } },
+  p6:  { modes:{dating:true, networking:false}, networking:null },
+  p7:  { modes:{dating:false, networking:true}, networking:{ ambition:'Lifetime', stage:'Advising',   role:'Capital',     thinking:'Quantitative',     expertise:'Authority',    execution:'Research-heavy',domain:'Finance',       lookingFor:'Deals'    } },
+  p8:  { modes:{dating:true, networking:true},  networking:{ ambition:'2 years',  stage:'Building',   role:'Specialist',  thinking:'First-principles', expertise:'Practitioner', execution:'Iterative',     domain:'Health',        lookingFor:'Peers'    } },
+  p9:  { modes:{dating:true, networking:true},  networking:{ ambition:'6 months', stage:'Exploring',  role:'Generalist',  thinking:'Intuitive',        expertise:'Curious',      execution:'Iterative',     domain:'Creative',      lookingFor:'Mentors'  } },
+  p10: { modes:{dating:true, networking:true},  networking:{ ambition:'2 years',  stage:'Building',   role:'Connector',   thinking:'Narrative',        expertise:'Practitioner', execution:'Ship-then-fix', domain:'Media',         lookingFor:'Intros'   } },
+  p11: { modes:{dating:false, networking:true}, networking:{ ambition:'Lifetime', stage:'Advising',   role:'Specialist',  thinking:'First-principles', expertise:'Authority',    execution:'Deliberate',    domain:'Education',     lookingFor:'Students' } },
+  p12: { modes:{dating:true, networking:false}, networking:null },
+  p13: { modes:{dating:true, networking:true},  networking:{ ambition:'2 years',  stage:'Building',   role:'Founder',     thinking:'Systems',          expertise:'Practitioner', execution:'Ship-then-fix', domain:'Social',        lookingFor:'Hires'    } },
+  p14: { modes:{dating:false, networking:false},networking:null },
+  p15: { modes:{dating:true, networking:true},  networking:{ ambition:'6 months', stage:'Exploring',  role:'Operator',    thinking:'Pattern-match',    expertise:'Practitioner', execution:'Iterative',     domain:'Climate',       lookingFor:'Peers'    } },
+  p16: { modes:{dating:false, networking:true}, networking:{ ambition:'10 years', stage:'Scaling',    role:'Founder',     thinking:'Quantitative',     expertise:'Expert',       execution:'Research-heavy',domain:'Frontier',      lookingFor:'Capital'  } },
+};
+
+export const SAMPLE_PEOPLE = PEOPLE_SEED.map(p => {
+  const ov = NETWORKING_OVERLAY[p.id] || { modes:{ dating:true, networking:false }, networking:null };
+  return { ...p, modes: ov.modes, networking: ov.networking };
+});
 
 export const DEFAULT_PROFILE = () => ({
   id: 'me',
   name: 'You',
   alias: 'you',
-  intent: 'dating',
+  modes: { dating: true, networking: true },
   status: { dating: 'open', networking: 'open' },
   visMode: 'hybrid',
   visMatchGate: 0.5,
   optIn: true,
-  self: {
-    gender: 'Non-binary', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
-    hair: 'Short', style: 'Smart-casual', grooming: 'Clean',
-    energy: 'Easy', vibe: 'Curious', lifestyle: 'Building', languages: 'English', culture: 'European',
-    smoking: 'No', drinking: 'Socially', education: 'Master'
-  },
-  prefs: {
-    gender: 'any',
-    filters:  { age: ['25–29','30–34'] },
-    weights:  Object.fromEntries(PHYSICAL_FIELDS.map(f => [f.key, f.weight])),
-    targets:  {
-      gender: '', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
-      hair: 'Long', style: 'Smart-casual', grooming: 'Clean',
-      energy: 'Lively', vibe: 'Warm', lifestyle: 'Building', languages: '', culture: '',
-      smoking: 'No', drinking: 'Socially', education: ''
+  dating: {
+    self: {
+      gender: 'Non-binary', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
+      hair: 'Short', style: 'Smart-casual', grooming: 'Clean',
+      energy: 'Easy', vibe: 'Curious', lifestyle: 'Building', languages: 'English', culture: 'European',
+      smoking: 'No', drinking: 'Socially', education: 'Master'
     },
-    excluded: {}
+    prefs: {
+      gender: 'any',
+      filters:  { age: ['25–29','30–34'] },
+      weights:  Object.fromEntries(PHYSICAL_FIELDS.map(f => [f.key, f.weight])),
+      targets:  {
+        gender: '', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
+        hair: 'Long', style: 'Smart-casual', grooming: 'Clean',
+        energy: 'Lively', vibe: 'Warm', lifestyle: 'Building', languages: '', culture: '',
+        smoking: 'No', drinking: 'Socially', education: ''
+      },
+      excluded: {}
+    }
+  },
+  networking: {
+    self: {
+      ambition: '2 years', stage: 'Building', role: 'Operator',
+      thinking: 'First-principles', expertise: 'Practitioner', execution: 'Iterative',
+      domain: 'Infra', lookingFor: 'Peers'
+    },
+    prefs: {
+      filters:  {},
+      weights:  Object.fromEntries(NETWORKING_FIELDS.map(f => [f.key, f.weight])),
+      targets:  {
+        ambition: '2 years', stage: 'Building', role: 'Founder',
+        thinking: 'First-principles', expertise: 'Expert', execution: 'Ship-then-fix',
+        domain: 'Infra', lookingFor: 'Peers'
+      },
+      excluded: {}
+    }
   },
   hobbies: [
     { key:'climbing', skill: 35, role:'student' },
