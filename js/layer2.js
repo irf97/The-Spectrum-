@@ -1,8 +1,9 @@
 // Layer 2 — Physical Match Percentage screen.
-// Consumes: engines/match.js. Edits: profile.prefs.
+// Gender-aware: "Looking for" gender chooses which option set is shown, and
+// which candidates make it to the live ranking. Adds richer preference fields.
 
-import { PHYSICAL_FIELDS, MATCH_BUCKETS, SAMPLE_PEOPLE } from './data.js';
-import { scoreCandidate, setWeight, toggleExcluded, toggleFilter, setTarget } from './engines/match.js';
+import { fieldsFor, GENDERS, MATCH_BUCKETS, SAMPLE_PEOPLE } from './data.js';
+import { scoreCandidate, setWeight, toggleExcluded, toggleFilter, setTarget, setGender } from './engines/match.js';
 import { store } from './state.js';
 import { $, $$, escapeHtml, initials, colorFor, pct } from './util.js';
 
@@ -11,6 +12,7 @@ function bucketChip(bucket, percent) {
 }
 
 function fieldRow(f, prefs) {
+  if (f.key === 'gender') return ''; // gender lives in the top selector, not the field grid
   const target = prefs.targets?.[f.key];
   const filterSet = new Set(prefs.filters?.[f.key] || []);
   const exclSet = new Set(prefs.excluded?.[f.key] || []);
@@ -47,8 +49,9 @@ function candidateRow(p, prefs) {
     <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60 transition">
       <span class="avatar w-10 h-10" style="background: linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${initials(p.name)}</span>
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <span class="font-medium truncate">${escapeHtml(p.name)}</span>
+          ${p.gender ? `<span class="pill pill-iris">${escapeHtml(p.gender)}</span>` : ''}
           ${bucketChip(r.bucket, r.pct)}
           ${r.blockedBy.length ? `<span class="pill pill-rose">filter blocked</span>` : ''}
           ${r.excludedHits.length ? `<span class="pill pill-rose">excluded</span>` : ''}
@@ -66,9 +69,26 @@ function bucketLegend() {
   </div>`;
 }
 
+function genderSelector(current) {
+  return `
+    <div class="card p-3 grid gap-2">
+      <div class="flex items-center justify-between">
+        <h2 class="font-display font-semibold">Looking for</h2>
+        <span class="text-[11px] text-slate-500">Drives which option set you see below</span>
+      </div>
+      <div class="flex flex-wrap gap-1.5" id="gender-row">
+        ${GENDERS.map(g => {
+          const sel = (current || 'any') === g.key;
+          return `<button class="pill ${sel?'pill-iris':''}" data-pref-gender="${g.key}">${g.icon} ${escapeHtml(g.label)}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
 export function render(root) {
   const me = store.profile;
   const prefs = me.prefs;
+  const fields = fieldsFor(prefs.gender || 'any');
   const candidates = SAMPLE_PEOPLE
     .map(p => ({ p, r: scoreCandidate(p, prefs) }))
     .sort((a,b) => b.r.pct - a.r.pct);
@@ -79,15 +99,17 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 2</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Physical Match Percentage</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Hard non-negotiables, weighted preferences, and excluded values collapse into a single physical fit score per person. This layer measures preference-fit only — chemistry, trust, and compatibility live elsewhere.</p>
+          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Hard non-negotiables, weighted preferences, and excluded values collapse into a single physical fit score per person. Choose who you're looking for first; the option set adapts.</p>
         </div>
         ${bucketLegend()}
       </header>
 
+      ${genderSelector(prefs.gender)}
+
       <div class="grid lg:grid-cols-5 gap-6">
         <div class="lg:col-span-3 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Inputs</h2>
-          ${PHYSICAL_FIELDS.map(f => fieldRow(f, prefs)).join('')}
+          ${fields.map(f => fieldRow(f, prefs)).join('')}
         </div>
 
         <aside class="lg:col-span-2 grid gap-3">
@@ -98,7 +120,12 @@ export function render(root) {
     </section>
   `;
 
-  // Wire interactions
+  $$('button[data-pref-gender]', root).forEach(b => b.addEventListener('click', () => {
+    const next = setGender(store.profile.prefs, b.dataset.prefGender);
+    store.setProfile({ prefs: next });
+    render(root);
+  }));
+
   $$('div[data-field]', root).forEach(box => {
     const field = box.dataset.field;
     box.querySelector('input[data-role="weight"]').addEventListener('input', (e) => {

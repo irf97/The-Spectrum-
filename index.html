@@ -8,10 +8,8 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <script>
-    // One-shot cache killer. Bumping APP_VER on a release auto-clears caches and
-    // service workers on next visit, then reloads with the new asset version.
     (function () {
-      var APP_VER = '7';
+      var APP_VER = '8';
       try {
         if (localStorage.getItem('app_ver') !== APP_VER) {
           localStorage.setItem('app_ver', APP_VER);
@@ -54,7 +52,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/spectrum.css?v=7" />
+  <link rel="stylesheet" href="./css/spectrum.css?v=8" />
 </head>
 <body class="bg-ink-950 text-slate-200 antialiased font-sans">
   <div id="app-root" class="min-h-screen flex flex-col">
@@ -63,7 +61,7 @@
         <a href="#/floor" class="flex items-center gap-2 group">
           <span class="block w-7 h-7 rounded-full bg-gradient-to-br from-mint-400 to-iris-500 ring-2 ring-ink-700 group-hover:ring-iris-500/50 transition"></span>
           <span class="font-display font-semibold tracking-tight text-lg">The&nbsp;Spectrum</span>
-          <span class="hidden sm:inline text-xs text-mint-400 ml-1">build v7</span>
+          <span class="hidden sm:inline text-xs text-mint-400 ml-1">build v8</span>
         </a>
         <nav id="nav" class="ml-auto flex items-center gap-1 overflow-x-auto whitespace-nowrap"></nav>
         <button id="status-pill" class="ml-2 hidden md:inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full border border-ink-500 hover:border-mint-500 transition"></button>
@@ -75,11 +73,11 @@
     <footer class="border-t border-ink-600 mt-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row gap-2 sm:items-center justify-between text-xs text-slate-500">
         <p>The Spectrum augments in-person noticing — it does not replace it. Social proximity buckets, never exact locations.</p>
-        <p>Local-first · build v7</p>
+        <p>Local-first · build v8</p>
       </div>
     </footer>
   </div>
 
-  <script type="module" src="./js/app.js?v=7"></script>
+  <script type="module" src="./js/app.js?v=8"></script>
 </body>
 </html>

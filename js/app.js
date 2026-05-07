@@ -12,18 +12,18 @@ import * as Layer5   from './layer5.js';
 import * as Profile  from './profile.js';
 import * as Privacy  from './privacy.js';
 import * as People   from './people.js';
-import * as More     from './more.js';
 
-defineRoute({ path: '/status',     name:'status',  label:'Status',  icon:'●', render: Layer1.render });
-defineRoute({ path: '/profile',    name:'profile', label:'Profile', icon:'☉', render: Profile.render });
-defineRoute({ path: '/privacy',    name:'privacy', label:'Privacy', icon:'🔒', render: Privacy.render });
-defineRoute({ path: '/more',       name:'more',    label:'More',    icon:'⋯', render: More.render });
+// All primary surfaces are visible in the nav with icons.
+defineRoute({ path: '/floor',     name:'floor',    label:'Floor',     icon:'⊙', render: Floor.render });
+defineRoute({ path: '/status',    name:'status',   label:'Status',    icon:'●', render: Layer1.render });
+defineRoute({ path: '/match',     name:'match',    label:'Match',     icon:'②', render: Layer2.render });
+defineRoute({ path: '/proximity', name:'prox',     label:'Proximity', icon:'③', render: Layer3.render });
+defineRoute({ path: '/identity',  name:'identity', label:'Identity',  icon:'④', render: Layer4.render });
+defineRoute({ path: '/rapport',   name:'rapport',  label:'Rapport',   icon:'⑤', render: Layer5.render });
+defineRoute({ path: '/profile',   name:'profile',  label:'Profile',   icon:'◉', render: Profile.render });
+defineRoute({ path: '/privacy',   name:'privacy',  label:'Privacy',   icon:'🔒', render: Privacy.render });
 
-defineRoute({ path: '/floor',      name:'floor',   label:null, render: Floor.render });
-defineRoute({ path: '/match',      name:'match',   label:null, render: Layer2.render });
-defineRoute({ path: '/proximity',  name:'prox',    label:null, render: Layer3.render });
-defineRoute({ path: '/identity',   name:'id',      label:null, render: Layer4.render });
-defineRoute({ path: '/rapport',    name:'rep',     label:null, render: Layer5.render });
+// Person detail — hidden from nav (no label).
 defineRoute({ path: '/people/:id', name:'person',  label:null, render: People.render });
 
 renderNav();
@@ -43,13 +43,12 @@ bus.on('state:changed', paintPill);
 
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-  if (e.key === '1') location.hash = '#/status';
-  if (e.key === '2') location.hash = '#/profile';
-  if (e.key === 'p') location.hash = '#/privacy';
-  if (e.key === 'm') location.hash = '#/more';
   if (e.key === '0') location.hash = '#/floor';
-  if (e.key === '3') location.hash = '#/match';
-  if (e.key === '4') location.hash = '#/proximity';
-  if (e.key === '5') location.hash = '#/identity';
-  if (e.key === '6') location.hash = '#/rapport';
+  if (e.key === '1') location.hash = '#/status';
+  if (e.key === '2') location.hash = '#/match';
+  if (e.key === '3') location.hash = '#/proximity';
+  if (e.key === '4') location.hash = '#/identity';
+  if (e.key === '5') location.hash = '#/rapport';
+  if (e.key === 'i') location.hash = '#/profile';
+  if (e.key === 'p') location.hash = '#/privacy';
 });

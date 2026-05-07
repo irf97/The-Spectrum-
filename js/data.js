@@ -1,5 +1,4 @@
-// Static reference data: status spectra, hobby catalog, sample people, privacy matrix.
-// All numeric ranges live here so the engines stay short.
+// Static reference data: status spectra, hobby catalog, sample people, privacy matrix, gender-aware fields.
 
 // ---------- Layer 1: Real-Life Social Status ---------------------------------
 
@@ -25,17 +24,64 @@ export const STATUS_NETWORKING = [
   { key: 'offline',     label: 'Offline',     icon: '⏸',  desc: 'Not networking right now.' },
 ];
 
-// ---------- Layer 2: Physical Match preference catalog -----------------------
+// ---------- Gender + gender-aware physical schema ---------------------------
 
-export const PHYSICAL_FIELDS = [
-  { key: 'height',   label: 'Height',   options: ['<160cm','160–170','170–180','180–190','190+'], weight: 0.6 },
-  { key: 'body',     label: 'Body type',options: ['Slim','Athletic','Average','Curvy','Muscular','Plus'], weight: 0.7 },
-  { key: 'face',     label: 'Face',     options: ['Soft','Sharp','Symmetric','Expressive','Striking'], weight: 0.5 },
-  { key: 'hair',     label: 'Hair',     options: ['Short','Medium','Long','Curly','Straight','Shaved','Color-treated'], weight: 0.4 },
-  { key: 'style',    label: 'Style',    options: ['Casual','Smart-casual','Streetwear','Formal','Bohemian','Sporty','Alt'], weight: 0.6 },
-  { key: 'grooming', label: 'Grooming', options: ['Clean','Trimmed beard','Full beard','Stubble','Hairless','Polished'], weight: 0.4 },
-  { key: 'age',      label: 'Age band', options: ['18–24','25–29','30–34','35–39','40–49','50+'], weight: 0.8 },
+export const GENDERS = [
+  { key:'woman',     label:'Woman',      icon:'♀' },
+  { key:'man',       label:'Man',        icon:'♂' },
+  { key:'nonbinary', label:'Non-binary', icon:'⚧' },
+  { key:'any',       label:'Any',        icon:'⊕' }, // valid only for prefs ("interested in")
 ];
+
+// Master schema. Fields with `optionsByGender` change their options based on the
+// subject's gender; fields with `options` are universal.
+const FIELD_SCHEMA = [
+  { key:'gender',    label:'Gender',     weight: 1.0, options: ['Woman','Man','Non-binary'] },
+  { key:'age',       label:'Age band',   weight: 0.8, options: ['18–24','25–29','30–34','35–39','40–49','50+'] },
+  { key:'height',    label:'Height',     weight: 0.6, options: ['<160cm','160–170','170–180','180–190','190+'] },
+  { key:'body',      label:'Body',       weight: 0.7, optionsByGender: {
+    woman:     ['Slim','Petite','Athletic','Average','Curvy','Voluptuous','Plus'],
+    man:       ['Slim','Lean','Athletic','Average','Stocky','Muscular','Plus'],
+    nonbinary: ['Slim','Athletic','Average','Curvy','Muscular','Plus'],
+    any:       ['Slim','Petite','Lean','Athletic','Average','Stocky','Curvy','Muscular','Voluptuous','Plus'],
+  }},
+  { key:'face',      label:'Face',       weight: 0.5, options: ['Soft','Sharp','Symmetric','Expressive','Striking'] },
+  { key:'hair',      label:'Hair',       weight: 0.4, optionsByGender: {
+    woman:     ['Pixie','Short','Bob','Medium','Long','Very long','Curly','Wavy','Straight','Color-treated','Shaved','Locs','Braids'],
+    man:       ['Buzz','Short','Medium','Long','Curly','Wavy','Straight','Shaved','Color-treated','Locs'],
+    nonbinary: ['Short','Medium','Long','Curly','Straight','Shaved','Color-treated'],
+    any:       ['Pixie','Buzz','Short','Bob','Medium','Long','Very long','Curly','Wavy','Straight','Color-treated','Shaved','Locs','Braids'],
+  }},
+  { key:'style',     label:'Style',      weight: 0.6, options: ['Casual','Smart-casual','Streetwear','Formal','Bohemian','Sporty','Alt','Vintage','Minimal','Goth','Preppy'] },
+  { key:'grooming',  label:'Grooming',   weight: 0.4, optionsByGender: {
+    woman:     ['Clean','Natural','Polished','Glamorous','Minimal','Bold makeup','Tattooed','Pierced'],
+    man:       ['Clean','Stubble','Trimmed beard','Full beard','Long beard','Hairless','Polished','Tattooed','Pierced'],
+    nonbinary: ['Clean','Trimmed','Polished','Natural','Hairless','Tattooed','Pierced'],
+    any:       ['Clean','Trimmed','Stubble','Trimmed beard','Full beard','Polished','Natural','Glamorous','Hairless','Tattooed','Pierced'],
+  }},
+  { key:'energy',    label:'Energy',     weight: 0.5, options: ['Calm','Quiet','Easy','Lively','High','Wired'] },
+  { key:'vibe',      label:'Vibe',       weight: 0.5, options: ['Warm','Reserved','Curious','Playful','Sharp','Soft','Steady','Witty','Earnest'] },
+  { key:'lifestyle', label:'Lifestyle',  weight: 0.4, options: ['Local','Settled','Building','Exploring','Resetting','Just landed'] },
+  { key:'languages', label:'Languages',  weight: 0.4, options: ['English','Dutch','Turkish','German','Arabic','Mandarin','Spanish','French','Italian','Japanese','Portuguese','Other'] },
+  { key:'culture',   label:'Cultural',   weight: 0.4, options: ['Dutch','Turkish','Moroccan','German','Indonesian','Surinamese','Caribbean','Indian','Chinese','East-Asian','Middle-Eastern','African','Latin','South-Asian','European','Mixed','Other'] },
+  { key:'smoking',   label:'Smoking',    weight: 0.3, options: ['No','Socially','Yes','Quitting'] },
+  { key:'drinking',  label:'Drinking',   weight: 0.3, options: ['No','Rarely','Socially','Often'] },
+  { key:'education', label:'Education',  weight: 0.3, options: ['HS','Trade','Bachelor','Master','PhD','Self-taught'] },
+];
+
+export function fieldsFor(genderKey) {
+  const g = (genderKey === 'any' || !genderKey) ? 'any' : genderKey;
+  return FIELD_SCHEMA.map(f => {
+    if (f.optionsByGender) {
+      const opts = f.optionsByGender[g] || f.optionsByGender.any;
+      return { key: f.key, label: f.label, weight: f.weight, options: opts };
+    }
+    return { key: f.key, label: f.label, weight: f.weight, options: f.options };
+  });
+}
+
+// Backwards-compat: legacy code that imports PHYSICAL_FIELDS gets the universal set.
+export const PHYSICAL_FIELDS = fieldsFor('any');
 
 export const MATCH_BUCKETS = [
   { key: 'ideal',    label: 'Ideal',    min: 0.90, swatch:'#ffd073', tone:'rep-exalted',  copy: 'Matches your full preference vector.' },
@@ -70,6 +116,22 @@ export const VIS_MODES = [
   { key:'hidden', label:'Hidden', icon:'🚫', copy:'Profile is undiscoverable.' },
 ];
 
+export const REVEAL_CHANNELS = [
+  { key:'photo',  label:'Photo',   icon:'🖼', copy:'Static face.' },
+  { key:'voice',  label:'Voice',   icon:'🎤', copy:'A short voice clip.' },
+  { key:'video',  label:'Video',   icon:'🎥', copy:'A short video moment.' },
+  { key:'handle', label:'Handle',  icon:'@',       copy:'Real name / social handle.' },
+  { key:'place',  label:'Place',   icon:'📍', copy:'Where you usually are.' },
+];
+
+export const REVEAL_TTL_OPTIONS = [
+  { key:'5m',     label:'5 min',     ms: 5 * 60 * 1000 },
+  { key:'30m',    label:'30 min',    ms: 30 * 60 * 1000 },
+  { key:'2h',     label:'2 hours',   ms: 2 * 60 * 60 * 1000 },
+  { key:'venue',  label:'Until I leave', ms: 6 * 60 * 60 * 1000 },
+  { key:'forever',label:'Permanent',  ms: 365 * 24 * 60 * 60 * 1000 },
+];
+
 // ---------- Layer 5: Rapport tiers -------------------------------------------
 
 export const REP_TIERS = [
@@ -82,8 +144,6 @@ export const REP_TIERS = [
   { key:'revered',    label:'Revered',    min:   2000, color:'#9b8cff', toneClass:'rep-revered',    copy:'Inner-orbit; strong reciprocity.' },
   { key:'exalted',    label:'Exalted',    min:   3500, color:'#ffd073', toneClass:'rep-exalted',    copy:'Lifelong bond; default ally.' },
 ];
-
-// ---------- Layer 5: Hobbies catalog -----------------------------------------
 
 export const HOBBY_CATALOG = [
   { key:'climbing',   label:'Climbing',           icon:'🧗' },
@@ -132,7 +192,7 @@ export const HOBBY_ROLES = [
   { key:'peers',      label:'Looking for peers',   icon:'🤝' },
 ];
 
-// ---------- Privacy matrix (per-action audience tiers) ----------------------
+// ---------- Privacy matrix ---------------------------------------------------
 
 export const AUDIENCE_TIERS = [
   { key:'nobody',         label:'Nobody',        short:'×',  swatch:'#94a3b8', copy:'Nothing visible.' },
@@ -183,40 +243,56 @@ export function defaultMatrix() {
   return Object.fromEntries(PRIVACY_AXES.map(a => [a.key, a.defaultTier]));
 }
 
-// ---------- Sample population (10m venue) -----------------------------------
+// ---------- Sample population (10m venue, gender + new traits) --------------
 
 const PEOPLE_SEED = [
-  { id:'p1',  name:'Mara Voss',     alias:'mv',       age:29, height:'170–180', body:'Athletic',  face:'Sharp',     hair:'Long',      style:'Smart-casual', grooming:'Clean',         intent:'dating',     status:'flirty',   visMode:'hybrid',
+  { id:'p1',  name:'Mara Voss',     alias:'mv',     gender:'Woman',      age:'25–29', height:'170–180', body:'Athletic',  face:'Sharp',     hair:'Long',      style:'Smart-casual', grooming:'Clean',          energy:'Lively', vibe:'Curious',   lifestyle:'Building',    languages:'English', culture:'European',         smoking:'No',        drinking:'Socially', education:'Master',
+    intent:'dating',     status:'flirty',   visMode:'hybrid',
     hobbies:[{key:'climbing',skill:64,role:'practicing'},{key:'piano',skill:32,role:'student'},{key:'photography',skill:78,role:'practicing'}], dist:1.6, stable:true,  optIn:true,  signal:0.9 },
-  { id:'p2',  name:'Theo Park',     alias:'theo',     age:34, height:'180–190', body:'Slim',      face:'Symmetric', hair:'Short',     style:'Streetwear',   grooming:'Stubble',       intent:'networking', status:'open',     visMode:'photo',
+  { id:'p2',  name:'Theo Park',     alias:'theo',   gender:'Man',        age:'30–34', height:'180–190', body:'Slim',      face:'Symmetric', hair:'Short',     style:'Streetwear',   grooming:'Stubble',        energy:'Calm',   vibe:'Sharp',     lifestyle:'Building',    languages:'English', culture:'East-Asian',       smoking:'No',        drinking:'Socially', education:'Master',
+    intent:'networking', status:'open',     visMode:'photo',
     hobbies:[{key:'coding',skill:88,role:'teacher'},{key:'chess',skill:55,role:'peers'},{key:'running',skill:48,role:'practicing'}], dist:3.2, stable:true,  optIn:true,  signal:0.7 },
-  { id:'p3',  name:'Lena Akagi',    alias:'lk',       age:27, height:'160–170', body:'Curvy',     face:'Soft',      hair:'Curly',     style:'Bohemian',     grooming:'Polished',      intent:'dating',     status:'warm',     visMode:'avatar',
+  { id:'p3',  name:'Lena Akagi',    alias:'lk',     gender:'Woman',      age:'25–29', height:'160–170', body:'Curvy',     face:'Soft',      hair:'Curly',     style:'Bohemian',     grooming:'Polished',       energy:'Quiet',  vibe:'Soft',      lifestyle:'Settled',     languages:'English', culture:'Mixed',            smoking:'Socially',  drinking:'Socially', education:'Bachelor',
+    intent:'dating',     status:'warm',     visMode:'avatar',
     hobbies:[{key:'painting',skill:71,role:'peers'},{key:'yoga',skill:40,role:'practicing'},{key:'languages',skill:55,role:'teacher'}], dist:7.5, stable:true,  optIn:true,  signal:0.6 },
-  { id:'p4',  name:'Jules Romero',  alias:'jules',    age:31, height:'170–180', body:'Athletic',  face:'Striking',  hair:'Shaved',    style:'Smart-casual', grooming:'Clean',         intent:'networking', status:'focused',  visMode:'glance',
+  { id:'p4',  name:'Jules Romero',  alias:'jules',  gender:'Non-binary', age:'30–34', height:'170–180', body:'Athletic',  face:'Striking',  hair:'Shaved',    style:'Smart-casual', grooming:'Clean',          energy:'High',   vibe:'Sharp',     lifestyle:'Exploring',   languages:'Spanish', culture:'Latin',            smoking:'No',        drinking:'Rarely',   education:'Master',
+    intent:'networking', status:'focused',  visMode:'glance',
     hobbies:[{key:'design',skill:82,role:'peers'},{key:'cycling',skill:60,role:'practicing'},{key:'cooking',skill:35,role:'student'}], dist:6.0, stable:false, optIn:true,  signal:0.5 },
-  { id:'p5',  name:'Idris Cole',    alias:'idris',    age:38, height:'180–190', body:'Muscular',  face:'Sharp',     hair:'Short',     style:'Casual',       grooming:'Full beard',    intent:'dating',     status:'selective',visMode:'hybrid',
+  { id:'p5',  name:'Idris Cole',    alias:'idris',  gender:'Man',        age:'35–39', height:'180–190', body:'Muscular',  face:'Sharp',     hair:'Short',     style:'Casual',       grooming:'Full beard',     energy:'Lively', vibe:'Steady',    lifestyle:'Settled',     languages:'English', culture:'African',          smoking:'No',        drinking:'Socially', education:'Bachelor',
+    intent:'dating',     status:'selective',visMode:'hybrid',
     hobbies:[{key:'lifting',skill:74,role:'teacher'},{key:'guitar',skill:42,role:'peers'},{key:'investing',skill:69,role:'practicing'}], dist:8.8, stable:true,  optIn:true,  signal:0.6 },
-  { id:'p6',  name:'Soraya Mehta',  alias:'sora',     age:25, height:'160–170', body:'Slim',      face:'Expressive',hair:'Medium',    style:'Alt',          grooming:'Polished',      intent:'dating',     status:'flirty',   visMode:'reveal',
+  { id:'p6',  name:'Soraya Mehta',  alias:'sora',   gender:'Woman',      age:'25–29', height:'160–170', body:'Slim',      face:'Expressive',hair:'Medium',    style:'Alt',          grooming:'Polished',       energy:'Lively', vibe:'Playful',   lifestyle:'Exploring',   languages:'English', culture:'South-Asian',      smoking:'Socially',  drinking:'Often',    education:'Bachelor',
+    intent:'dating',     status:'flirty',   visMode:'reveal',
     hobbies:[{key:'singing',skill:81,role:'peers'},{key:'guitar',skill:52,role:'practicing'},{key:'meditation',skill:30,role:'student'}], dist:4.2, stable:true,  optIn:true,  signal:0.85 },
-  { id:'p7',  name:'Ben Caruso',    alias:'benc',     age:42, height:'170–180', body:'Average',   face:'Soft',      hair:'Medium',    style:'Smart-casual', grooming:'Trimmed beard', intent:'networking', status:'curious',  visMode:'photo',
+  { id:'p7',  name:'Ben Caruso',    alias:'benc',   gender:'Man',        age:'40–49', height:'170–180', body:'Average',   face:'Soft',      hair:'Medium',    style:'Smart-casual', grooming:'Trimmed beard',  energy:'Easy',   vibe:'Earnest',   lifestyle:'Settled',     languages:'Italian', culture:'European',         smoking:'No',        drinking:'Socially', education:'PhD',
+    intent:'networking', status:'curious',  visMode:'photo',
     hobbies:[{key:'investing',skill:88,role:'teacher'},{key:'tennis',skill:62,role:'peers'},{key:'reading',skill:55,role:'practicing'}], dist:7.0, stable:true,  optIn:true,  signal:0.55 },
-  { id:'p8',  name:'Hira Jalil',    alias:'hira',     age:26, height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Long',      style:'Sporty',       grooming:'Clean',         intent:'dating',     status:'open',     visMode:'photo',
+  { id:'p8',  name:'Hira Jalil',    alias:'hira',   gender:'Woman',      age:'25–29', height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Long',      style:'Sporty',       grooming:'Clean',          energy:'High',   vibe:'Warm',      lifestyle:'Building',    languages:'Arabic',  culture:'Middle-Eastern',   smoking:'No',        drinking:'No',       education:'Master',
+    intent:'dating',     status:'open',     visMode:'photo',
     hobbies:[{key:'running',skill:80,role:'peers'},{key:'climbing',skill:38,role:'student'},{key:'cooking',skill:60,role:'practicing'}], dist:2.4, stable:true,  optIn:true,  signal:0.95 },
-  { id:'p9',  name:'Noah Field',    alias:'nf',       age:29, height:'180–190', body:'Athletic',  face:'Striking',  hair:'Short',     style:'Casual',       grooming:'Stubble',       intent:'networking', status:'engaged',  visMode:'avatar',
+  { id:'p9',  name:'Noah Field',    alias:'nf',     gender:'Man',        age:'25–29', height:'180–190', body:'Athletic',  face:'Striking',  hair:'Short',     style:'Casual',       grooming:'Stubble',        energy:'Calm',   vibe:'Reserved',  lifestyle:'Exploring',   languages:'English', culture:'European',         smoking:'No',        drinking:'Socially', education:'Bachelor',
+    intent:'networking', status:'engaged',  visMode:'avatar',
     hobbies:[{key:'design',skill:55,role:'peers'},{key:'photography',skill:62,role:'practicing'},{key:'surfing',skill:74,role:'teacher'}], dist:9.5, stable:false, optIn:false, signal:0.3 },
-  { id:'p10', name:'Anya Kowalski', alias:'anya',     age:33, height:'170–180', body:'Curvy',     face:'Striking',  hair:'Color-treated',style:'Alt',       grooming:'Polished',      intent:'dating',     status:'selective',visMode:'glance',
+  { id:'p10', name:'Anya Kowalski', alias:'anya',   gender:'Woman',      age:'30–34', height:'170–180', body:'Curvy',     face:'Striking',  hair:'Color-treated',style:'Alt',       grooming:'Polished',       energy:'Wired',  vibe:'Witty',     lifestyle:'Just landed', languages:'German',  culture:'European',         smoking:'Socially',  drinking:'Often',    education:'Master',
+    intent:'dating',     status:'selective',visMode:'glance',
     hobbies:[{key:'dancing',skill:78,role:'teacher'},{key:'languages',skill:48,role:'practicing'},{key:'painting',skill:35,role:'student'}], dist:5.4, stable:true,  optIn:true,  signal:0.7 },
-  { id:'p11', name:'Kenji Hara',    alias:'kenji',    age:46, height:'170–180', body:'Average',   face:'Sharp',     hair:'Short',     style:'Formal',       grooming:'Clean',         intent:'networking', status:'open',     visMode:'reveal',
+  { id:'p11', name:'Kenji Hara',    alias:'kenji',  gender:'Man',        age:'40–49', height:'170–180', body:'Average',   face:'Sharp',     hair:'Short',     style:'Formal',       grooming:'Clean',          energy:'Calm',   vibe:'Steady',    lifestyle:'Settled',     languages:'Japanese',culture:'East-Asian',       smoking:'No',        drinking:'Rarely',   education:'PhD',
+    intent:'networking', status:'open',     visMode:'reveal',
     hobbies:[{key:'chess',skill:92,role:'teacher'},{key:'piano',skill:80,role:'practicing'},{key:'reading',skill:70,role:'peers'}], dist:3.6, stable:true,  optIn:true,  signal:0.8 },
-  { id:'p12', name:'Mira Ó Coileáin',alias:'mira',    age:24, height:'160–170', body:'Slim',      face:'Soft',      hair:'Long',      style:'Bohemian',     grooming:'Polished',      intent:'dating',     status:'warm',     visMode:'hybrid',
+  { id:'p12', name:'Mira Ó Coileáin',alias:'mira',  gender:'Woman',      age:'18–24', height:'160–170', body:'Slim',      face:'Soft',      hair:'Long',      style:'Bohemian',     grooming:'Polished',       energy:'Easy',   vibe:'Soft',      lifestyle:'Local',       languages:'English', culture:'European',         smoking:'No',        drinking:'Socially', education:'Bachelor',
+    intent:'dating',     status:'warm',     visMode:'hybrid',
     hobbies:[{key:'yoga',skill:68,role:'peers'},{key:'pottery',skill:45,role:'practicing'},{key:'astronomy',skill:25,role:'student'}], dist:4.6, stable:true,  optIn:true,  signal:0.78 },
-  { id:'p13', name:'Sam Greaves',   alias:'sam',      age:39, height:'180–190', body:'Plus',      face:'Expressive',hair:'Shaved',    style:'Casual',       grooming:'Full beard',    intent:'networking', status:'circulating',visMode:'photo',
+  { id:'p13', name:'Sam Greaves',   alias:'sam',    gender:'Non-binary', age:'35–39', height:'180–190', body:'Plus',      face:'Expressive',hair:'Shaved',    style:'Casual',       grooming:'Tattooed',       energy:'Lively', vibe:'Warm',      lifestyle:'Settled',     languages:'English', culture:'Caribbean',        smoking:'Quitting',  drinking:'Often',    education:'Trade',
+    intent:'networking', status:'circulating',visMode:'photo',
     hobbies:[{key:'baking',skill:72,role:'teacher'},{key:'gardening',skill:60,role:'peers'},{key:'writing',skill:50,role:'practicing'}], dist:8.0, stable:false, optIn:true,  signal:0.45 },
-  { id:'p14', name:'Yui Tanaka',    alias:'yui',      age:28, height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Medium',    style:'Streetwear',   grooming:'Clean',         intent:'dating',     status:'invisible',visMode:'hidden',
+  { id:'p14', name:'Yui Tanaka',    alias:'yui',    gender:'Woman',      age:'25–29', height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Medium',    style:'Streetwear',   grooming:'Clean',          energy:'Quiet',  vibe:'Reserved',  lifestyle:'Exploring',   languages:'Japanese',culture:'East-Asian',       smoking:'No',        drinking:'No',       education:'Bachelor',
+    intent:'dating',     status:'invisible',visMode:'hidden',
     hobbies:[{key:'martial',skill:84,role:'teacher'},{key:'meditation',skill:55,role:'practicing'}], dist:11.2, stable:true,  optIn:false, signal:0.2 },
-  { id:'p15', name:'Carlos Rey',    alias:'carlos',   age:30, height:'170–180', body:'Athletic',  face:'Symmetric', hair:'Short',     style:'Sporty',       grooming:'Clean',         intent:'dating',     status:'flirty',   visMode:'photo',
+  { id:'p15', name:'Carlos Rey',    alias:'carlos', gender:'Man',        age:'30–34', height:'170–180', body:'Athletic',  face:'Symmetric', hair:'Short',     style:'Sporty',       grooming:'Clean',          energy:'High',   vibe:'Playful',   lifestyle:'Local',       languages:'Spanish', culture:'Latin',            smoking:'No',        drinking:'Socially', education:'Bachelor',
+    intent:'dating',     status:'flirty',   visMode:'photo',
     hobbies:[{key:'tennis',skill:76,role:'teacher'},{key:'surfing',skill:55,role:'peers'},{key:'lifting',skill:45,role:'practicing'}], dist:2.0, stable:true,  optIn:true,  signal:0.92 },
-  { id:'p16', name:'Priya Shah',    alias:'priya',    age:32, height:'160–170', body:'Average',   face:'Striking',  hair:'Long',      style:'Smart-casual', grooming:'Polished',      intent:'networking', status:'selective',visMode:'reveal',
+  { id:'p16', name:'Priya Shah',    alias:'priya',  gender:'Woman',      age:'30–34', height:'160–170', body:'Average',   face:'Striking',  hair:'Long',      style:'Smart-casual', grooming:'Polished',       energy:'Calm',   vibe:'Witty',     lifestyle:'Settled',     languages:'Mandarin',culture:'South-Asian',      smoking:'No',        drinking:'Rarely',   education:'Master',
+    intent:'networking', status:'selective',visMode:'reveal',
     hobbies:[{key:'writing',skill:80,role:'peers'},{key:'languages',skill:65,role:'practicing'},{key:'photography',skill:38,role:'student'}], dist:5.8, stable:true,  optIn:true,  signal:0.7 },
 ];
 
@@ -233,15 +309,44 @@ export const DEFAULT_PROFILE = () => ({
   visMatchGate: 0.5,
   optIn: true,
   self: {
-    age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
-    hair: 'Short', style: 'Smart-casual', grooming: 'Clean'
+    gender: 'Non-binary',
+    age: '25–29',
+    height: '170–180',
+    body: 'Athletic',
+    face: 'Symmetric',
+    hair: 'Short',
+    style: 'Smart-casual',
+    grooming: 'Clean',
+    energy: 'Easy',
+    vibe: 'Curious',
+    lifestyle: 'Building',
+    languages: 'English',
+    culture: 'European',
+    smoking: 'No',
+    drinking: 'Socially',
+    education: 'Master'
   },
   prefs: {
+    gender: 'any',
     filters:  { age: ['25–29','30–34'] },
     weights:  Object.fromEntries(PHYSICAL_FIELDS.map(f => [f.key, f.weight])),
     targets:  {
-      height: '170–180', body: 'Athletic', face: 'Symmetric',
-      hair: 'Long', style: 'Smart-casual', grooming: 'Clean', age: '25–29'
+      gender: '',
+      age: '25–29',
+      height: '170–180',
+      body: 'Athletic',
+      face: 'Symmetric',
+      hair: 'Long',
+      style: 'Smart-casual',
+      grooming: 'Clean',
+      energy: 'Lively',
+      vibe: 'Warm',
+      lifestyle: 'Building',
+      languages: '',
+      culture: '',
+      smoking: 'No',
+      drinking: 'Socially',
+      education: ''
     },
     excluded: {}
   },
@@ -254,6 +359,13 @@ export const DEFAULT_PROFILE = () => ({
     hideFromMatchBelow: 0.25,
     allowSignal: 'ble',
     matrix: defaultMatrix(),
-    temp: {} // axis -> { tier, expiresAt, revertTo }
+    temp: {}
+  },
+  identity: {
+    channels: { photo:'reveal_mutual', voice:'reveal_mutual', video:'reveal_mutual', handle:'match_gated', place:'reveal_mutual' },
+    glance: { blur: 3, saturate: 0.7 },
+    autoRevoke: { onStatusChange: true, onLeaveRoom: false, onMute: true },
+    revealTtlKey: '2h',
+    history: [] // [{ ts, personId, channel, action }]
   }
 });
