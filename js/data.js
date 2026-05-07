@@ -1,4 +1,4 @@
-// Static reference data: status spectra, hobby catalog, sample people.
+// Static reference data: status spectra, hobby catalog, sample people, privacy matrix.
 // All numeric ranges live here so the engines stay short.
 
 // ---------- Layer 1: Real-Life Social Status ---------------------------------
@@ -47,7 +47,6 @@ export const MATCH_BUCKETS = [
 ];
 
 // ---------- Layer 3: Proximity zones (10m world) ----------------------------
-// The Spectrum operates inside a single venue room; everything past 10m is filtered.
 
 export const PROX_ZONES = [
   { key:'reach',    label:'Reach',    color:'#78f3d3', range:[0,2],     copy:'Eye-contact range; same table.' },
@@ -72,7 +71,6 @@ export const VIS_MODES = [
 ];
 
 // ---------- Layer 5: Rapport tiers -------------------------------------------
-// Inspired by World of Warcraft faction reputation. Values shrunk to live-app scale.
 
 export const REP_TIERS = [
   { key:'hated',      label:'Hated',      min: -10000, color:'#ff5d80', toneClass:'rep-hated',      copy:'Active aversion; avoid contact.' },
@@ -133,6 +131,57 @@ export const HOBBY_ROLES = [
   { key:'student',    label:'Looking for student', icon:'🎓' },
   { key:'peers',      label:'Looking for peers',   icon:'🤝' },
 ];
+
+// ---------- Privacy matrix (per-action audience tiers) ----------------------
+
+export const AUDIENCE_TIERS = [
+  { key:'nobody',         label:'Nobody',        short:'×',  swatch:'#94a3b8', copy:'Nothing visible.' },
+  { key:'reveal_mutual',  label:'Mutual reveal', short:'⇋',  swatch:'#9b8cff', copy:'Only after both sides flag reveal.' },
+  { key:'match_gated',    label:'Match% ≥ gate', short:'≥%', swatch:'#78f3d3', copy:'People who clear your reveal-gate match score.' },
+  { key:'same_room',      label:'Same room',     short:'⌂',  swatch:'#7b6cff', copy:'Anyone within the 10m bubble.' },
+  { key:'anyone',         label:'Anyone',        short:'∞',  swatch:'#ffd073', copy:'Any discoverable user.' },
+];
+
+export const PRIVACY_AXES = [
+  { key:'showOnFloor',           label:'Appear on the floor',          group:'visibility', defaultTier:'same_room',     copy:'Be visible at all to people in the venue.' },
+  { key:'showName',              label:'Share real name',              group:'visibility', defaultTier:'reveal_mutual', copy:'Otherwise you appear by alias only.' },
+  { key:'showPhoto',             label:'Share photo / reveal',         group:'visibility', defaultTier:'reveal_mutual', copy:'Falls back to avatar / glance if denied.' },
+  { key:'showHobbies',           label:'Share hobbies & skills',       group:'visibility', defaultTier:'match_gated',   copy:'Drives teacher / student matching.' },
+  { key:'showStatus',            label:'Share status word',            group:'visibility', defaultTier:'same_room',     copy:'Open / Curious / Focused / etc.' },
+  { key:'receiveMessages',       label:'Receive direct messages',      group:'inbound',    defaultTier:'reveal_mutual', copy:'Who can DM you.' },
+  { key:'receiveRevealRequests', label:'Receive reveal requests',      group:'inbound',    defaultTier:'match_gated',   copy:'Who can flag you for reveal.' },
+  { key:'countRapportWith',      label:'Accrue rapport with',          group:'rapport',    defaultTier:'same_room',     copy:'Who counts toward your rapport over time.' },
+  { key:'showOnLeaderboards',    label:'Appear on rapport leaderboards', group:'leaderboard', defaultTier:'nobody',     copy:'Reserved — leaderboards not built yet.' },
+];
+
+export const PRIVACY_PRESETS = [
+  { key:'stealth', label:'Stealth', icon:'🌑', copy:'Present but invisible.', matrix:{
+    showOnFloor:'nobody', showName:'nobody', showPhoto:'nobody', showHobbies:'nobody', showStatus:'nobody',
+    receiveMessages:'nobody', receiveRevealRequests:'nobody', countRapportWith:'nobody', showOnLeaderboards:'nobody'
+  }},
+  { key:'networking', label:'Networking event', icon:'🤝', copy:'Open to introductions in the room.', matrix:{
+    showOnFloor:'anyone', showName:'same_room', showPhoto:'same_room', showHobbies:'same_room', showStatus:'anyone',
+    receiveMessages:'same_room', receiveRevealRequests:'anyone', countRapportWith:'same_room', showOnLeaderboards:'nobody'
+  }},
+  { key:'dating', label:'Dating night', icon:'💫', copy:'Avatar-first; reveal only on mutual.', matrix:{
+    showOnFloor:'same_room', showName:'reveal_mutual', showPhoto:'reveal_mutual', showHobbies:'match_gated', showStatus:'same_room',
+    receiveMessages:'reveal_mutual', receiveRevealRequests:'match_gated', countRapportWith:'same_room', showOnLeaderboards:'nobody'
+  }},
+  { key:'cafe', label:'Café focus', icon:'☕', copy:'Quiet presence; no inbound.', matrix:{
+    showOnFloor:'same_room', showName:'nobody', showPhoto:'nobody', showHobbies:'nobody', showStatus:'nobody',
+    receiveMessages:'nobody', receiveRevealRequests:'nobody', countRapportWith:'nobody', showOnLeaderboards:'nobody'
+  }},
+];
+
+export const TEMP_DURATIONS = [
+  { key:'30m', label:'30 min', ms: 30 * 60 * 1000 },
+  { key:'2h',  label:'2 hours', ms: 2 * 60 * 60 * 1000 },
+  { key:'6h',  label:'6 hours', ms: 6 * 60 * 60 * 1000 },
+];
+
+export function defaultMatrix() {
+  return Object.fromEntries(PRIVACY_AXES.map(a => [a.key, a.defaultTier]));
+}
 
 // ---------- Sample population (10m venue) -----------------------------------
 
@@ -201,5 +250,10 @@ export const DEFAULT_PROFILE = () => ({
     { key:'cooking',  skill: 55, role:'peers'   },
     { key:'reading',  skill: 60, role:'practicing' }
   ],
-  privacy: { hideFromMatchBelow: 0.25, allowSignal:'ble' }
+  privacy: {
+    hideFromMatchBelow: 0.25,
+    allowSignal: 'ble',
+    matrix: defaultMatrix(),
+    temp: {} // axis -> { tier, expiresAt, revertTo }
+  }
 });

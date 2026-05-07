@@ -1,4 +1,5 @@
 // Live Floor — the integrated, all-layers view inside the 10m bubble.
+// Honours the privacy matrix at the dot level and the shortlist level.
 
 import { SAMPLE_PEOPLE, PROX_ZONES, MATCH_BUCKETS, STATUS_DATING, STATUS_NETWORKING } from './data.js';
 import { scoreCandidate } from './engines/match.js';
@@ -6,11 +7,22 @@ import { classify } from './engines/proximity.js';
 import { resolveView } from './engines/identity.js';
 import { progress } from './engines/rapport.js';
 import { relate, hobbyMeta } from './engines/hobbies.js';
+import { canSee } from './engines/privacy.js';
 import { store } from './state.js';
 import { $, $$, escapeHtml, initials, colorFor, pct, bus, fmtRel } from './util.js';
 
 let unsubTick = null;
 let unsubState = null;
+
+function privacyCtx(me, p, sc, cls, reveals, muted) {
+  return {
+    muted: !!muted[p.id],
+    zoneKey: cls.zone.key,
+    matchPct: sc.pct,
+    viewerReveal: !!reveals[p.id],
+    subjectReveal: !!reveals[p.id], // simulation: treat their reveal as mirroring yours
+  };
+}
 
 function dotFor(p, me, world, muted, reveals) {
   const w = world[p.id] || {};
@@ -20,41 +32,45 @@ function dotFor(p, me, world, muted, reveals) {
   const myStatus = me.intent === 'networking' ? me.status.networking : me.status.dating;
   if (myStatus === 'closed' || myStatus === 'offline' || myStatus === 'invisible') return '';
   if ((myStatus === 'selective' || myStatus === 'focused') && score.pct < 0.5) return '';
-  const view = resolveView(me, p, score.pct, { reveals, theirReveal: !!reveals[p.id], muted: muted[p.id] });
-  // position from world (~-12..+12 metres) to floor px (4%..96%)
+  const ctx = privacyCtx(me, p, score, cls, reveals, muted);
+  if (!canSee(me, p, 'showOnFloor', ctx)) return '';
+  const view = resolveView(me, p, score.pct, { reveals, theirReveal: !!reveals[p.id], muted: muted[p.id], zoneKey: cls.zone.key });
+  const showsName = (view.shows === 'photo' || view.shows === 'reveal') && canSee(me, p, 'showName', ctx);
   const left = ((w.x||0) + 12) / 24 * 92 + 4;
   const top  = ((w.y||0) + 12) / 24 * 92 + 4;
   const matchClass = score.bucket.key === 'ideal' ? 'match-ideal'
                   : score.bucket.key === 'strong' ? 'match-strong'
                   : score.bucket.key === 'moderate' ? 'match-moderate' : '';
   const muteClass = muted[p.id] ? 'muted' : '';
-  const label = view.shows === 'photo' || view.shows === 'reveal' ? initials(p.name)
+  const label = showsName ? initials(p.name)
               : view.shows === 'avatar' ? (p.alias||'').slice(0,2).toUpperCase()
               : view.shows === 'glance' ? '·'
               : '×';
-  const bg = view.shows === 'photo' || view.shows === 'reveal' ? colorFor(p.id) : 'var(--panel-2)';
+  const bg = (view.shows === 'photo' || view.shows === 'reveal') ? colorFor(p.id) : 'var(--panel-2)';
   const filter = view.shows === 'glance' ? 'filter:blur(2px) saturate(.7);' : '';
+  const labelTxt = showsName ? p.name : '@'+p.alias;
   return `
     <a href="#/people/${p.id}"
        class="person ${matchClass} ${muteClass}"
-       title="${escapeHtml(p.name)} · ${cls.zone.label} · ${score.bucket.label}"
+       title="${escapeHtml(labelTxt)} · ${cls.zone.label} · ${score.bucket.label}"
        style="left:${left}%;top:${top}%;background:${bg};${filter}">${escapeHtml(label)}</a>`;
 }
 
 function rings() {
-  // Visualize the four proximity rings (2m, 5m, 10m, full venue) within ~12m.
   const sizes = [16, 41, 83, 100];
   return sizes.map(s => `<span class="ring" style="width:${s}%;height:${s}%"></span>`).join('');
 }
 
-function summaryStats(me, world, muted) {
+function summaryStats(me, world, muted, reveals) {
   const buckets = { reach:0, nearby:0, room:0, passing:0, hidden:0 };
   let strong = 0, ideal = 0;
   for (const p of SAMPLE_PEOPLE) {
     const w = world[p.id] || {};
     const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted:!!muted[p.id] });
-    if (buckets[cls.zone.key] !== undefined) buckets[cls.zone.key]++;
     const sc = scoreCandidate(p, me.prefs);
+    const ctx = privacyCtx(me, p, sc, cls, reveals, muted);
+    if (!canSee(me, p, 'showOnFloor', ctx)) continue;
+    if (buckets[cls.zone.key] !== undefined) buckets[cls.zone.key]++;
     if (sc.bucket.key === 'strong') strong++;
     if (sc.bucket.key === 'ideal') ideal++;
   }
@@ -74,27 +90,32 @@ function shortlist(me, world, muted, rapport, reveals) {
     const proxBoost  = cls.zone.key === 'reach' ? 1.2 : cls.zone.key === 'nearby' ? 1 : cls.zone.key === 'room' ? 0.6 : cls.zone.key === 'passing' ? 0.3 : 0;
     const repBoost   = Math.max(0, Math.min(1, r.points / 2000));
     const score = (sc.pct * 0.55) + (proxBoost * 0.2) + (hobbyBoost * 0.15) + (repBoost * 0.1);
-    return { p, sc, cls, rel, r, rp, score };
+    const ctx = privacyCtx(me, p, sc, cls, reveals, muted);
+    return { p, sc, cls, rel, r, rp, score, ctx };
   })
   .filter(x => x.cls.zone.key !== 'hidden' && x.cls.zone.key !== 'outrange' && x.cls.zone.key !== 'muted' && x.cls.zone.key !== 'unknown')
+  .filter(x => canSee(me, x.p, 'showOnFloor', x.ctx))
   .filter(x => !((myStatus==='selective'||myStatus==='focused') && x.sc.pct < 0.5))
   .sort((a,b) => b.score - a.score)
   .slice(0,8);
   return arr;
 }
 
-function shortlistRow({ p, sc, cls, rel, r, rp, score }) {
+function shortlistRow({ p, sc, cls, rel, r, rp, score, ctx }) {
+  const me = store.profile;
+  const showsName = canSee(me, p, 'showName', ctx);
+  const showsHobbies = canSee(me, p, 'showHobbies', ctx);
   return `
     <a href="#/people/${p.id}" class="card-soft p-3 grid gap-1.5 hover:border-iris-500/60">
       <div class="flex items-center gap-3">
-        <span class="avatar w-10 h-10" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${initials(p.name)}</span>
+        <span class="avatar w-10 h-10" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${showsName ? initials(p.name) : (p.alias||'').slice(0,2).toUpperCase()}</span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-medium truncate">${escapeHtml(p.name)}</span>
+            <span class="font-medium truncate">${escapeHtml(showsName ? p.name : '@'+p.alias)}</span>
             <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${cls.zone.label}</span>
             <span class="pill" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">${sc.bucket.label} · ${pct(sc.pct)}</span>
-            ${rel.teacher ? `<span class="pill pill-sun">🎓 teach: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
-            ${rel.student ? `<span class="pill pill-mint">📚 learn: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
+            ${showsHobbies && rel.teacher ? `<span class="pill pill-sun">🎓 teach: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
+            ${showsHobbies && rel.student ? `<span class="pill pill-mint">📚 learn: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
           </div>
           <div class="text-[11px] text-slate-500 mt-0.5">${rp.tier.label} · ${Math.round(r.points||0)} pts</div>
         </div>
@@ -118,7 +139,7 @@ export function render(root) {
       return;
     }
     const me = store.profile;
-    const stats = summaryStats(me, store.world, store.muted);
+    const stats = summaryStats(me, store.world, store.muted, store.reveals);
     const dots = SAMPLE_PEOPLE.map(p => dotFor(p, me, store.world, store.muted, store.reveals)).join('');
     const list = shortlist(me, store.world, store.muted, store.rapport, store.reveals);
 
@@ -128,7 +149,7 @@ export function render(root) {
           <div>
             <p class="h-eyebrow">Live Floor · 10m bubble</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">The room, right now</h1>
-            <p class="text-sm text-slate-400 mt-1 max-w-2xl">All five layers, integrated inside a 10m venue bubble. Your status filters who appears. Distance places them. Identity rules limit what you see. Match % colours the ring. Rapport accrues as long as you stay near.</p>
+            <p class="text-sm text-slate-400 mt-1 max-w-2xl">All five layers integrated inside a 10m venue bubble — with privacy matrix gates applied. <a href="#/privacy" class="text-iris-400 hover:underline">Edit privacy</a>.</p>
           </div>
           <div class="flex flex-wrap gap-1.5">
             <span class="pill pill-mint">Reach ${stats.buckets.reach}</span>
@@ -158,8 +179,11 @@ export function render(root) {
 
           <aside class="lg:col-span-2 grid gap-3">
             <h2 class="font-display font-semibold text-lg">Your shortlist</h2>
-            ${list.length ? list.map(shortlistRow).join('') : '<div class="card-soft p-3 text-sm text-slate-500">Nobody fits the active filters yet. Try changing your status or weights.</div>'}
-            <a href="#/profile" class="btn">Edit profile & preferences</a>
+            ${list.length ? list.map(shortlistRow).join('') : '<div class="card-soft p-3 text-sm text-slate-500">Nobody fits the active filters yet. Try changing your status, weights, or privacy.</div>'}
+            <div class="flex gap-2">
+              <a href="#/profile" class="btn flex-1">Profile</a>
+              <a href="#/privacy" class="btn flex-1">Privacy</a>
+            </div>
           </aside>
         </div>
       </section>

@@ -1,13 +1,15 @@
 // Local-first store with LocalStorage persistence and a 1-second simulation tick.
 // State is intentionally thin — engines do all logic.
 
-import { DEFAULT_PROFILE, SAMPLE_PEOPLE } from './data.js';
+import { DEFAULT_PROFILE, SAMPLE_PEOPLE, defaultMatrix, PRIVACY_AXES } from './data.js';
 import { classify } from './engines/proximity.js';
 import { accrualPerTick } from './engines/rapport.js';
 import { sharedKeys } from './engines/hobbies.js';
+import { canSee } from './engines/privacy.js';
+import { scoreCandidate } from './engines/match.js';
 import { bus, clamp } from './util.js';
 
-const KEY = 'spectrum:v2';
+const KEY = 'spectrum:v3';
 
 const blank = () => ({
   profile: DEFAULT_PROFILE(),
@@ -22,7 +24,15 @@ const blank = () => ({
 function migrate(s) {
   if (!s || typeof s !== 'object') return blank();
   const base = blank();
-  return { ...base, ...s, profile: { ...base.profile, ...(s.profile || {}) } };
+  const merged = { ...base, ...s, profile: { ...base.profile, ...(s.profile || {}) } };
+  // Ensure privacy matrix + temp exist on the profile.
+  const p = merged.profile;
+  p.privacy = p.privacy || {};
+  p.privacy.matrix = { ...defaultMatrix(), ...(p.privacy.matrix || {}) };
+  p.privacy.temp   = p.privacy.temp || {};
+  if (typeof p.privacy.hideFromMatchBelow !== 'number') p.privacy.hideFromMatchBelow = 0.25;
+  if (!p.privacy.allowSignal) p.privacy.allowSignal = 'ble';
+  return merged;
 }
 
 class Store {
@@ -43,6 +53,45 @@ class Store {
   get muted()   { return this.s.muted; }
   get log()     { return this.s.log; }
   setProfile(patch) { this.s.profile = { ...this.s.profile, ...patch }; this.save(); }
+
+  // Privacy matrix helpers ---------------------------------------------------
+  setPrivacyAxis(axis, tier) {
+    const p = this.s.profile;
+    p.privacy = p.privacy || {};
+    p.privacy.matrix = { ...(p.privacy.matrix || defaultMatrix()), [axis]: tier };
+    // Setting the persistent tier clears any active temp override on this axis.
+    if (p.privacy.temp?.[axis]) { delete p.privacy.temp[axis]; }
+    this.save();
+  }
+  setPrivacyTemp(axis, tier, ttlMs) {
+    const p = this.s.profile;
+    p.privacy = p.privacy || {};
+    p.privacy.temp = p.privacy.temp || {};
+    p.privacy.temp[axis] = {
+      tier,
+      expiresAt: Date.now() + Math.max(60_000, Number(ttlMs) || 0),
+      revertTo: p.privacy.matrix?.[axis] || null,
+    };
+    this.save();
+  }
+  clearPrivacyTemp(axis) {
+    const p = this.s.profile;
+    if (p.privacy?.temp?.[axis]) { delete p.privacy.temp[axis]; this.save(); }
+  }
+  applyPrivacyPreset(preset) {
+    const p = this.s.profile;
+    p.privacy = p.privacy || {};
+    p.privacy.matrix = { ...defaultMatrix(), ...preset.matrix };
+    p.privacy.temp = {}; // presets clear time-bound overrides
+    this.save();
+  }
+  resetPrivacyMatrix() {
+    const p = this.s.profile;
+    p.privacy = p.privacy || {};
+    p.privacy.matrix = defaultMatrix();
+    p.privacy.temp = {};
+    this.save();
+  }
 
   _ensureWorld() {
     SAMPLE_PEOPLE.forEach((p) => {
@@ -66,11 +115,25 @@ class Store {
   startTicking() { if (this._tickHandle) return; this._tickHandle = setInterval(() => this.tick(), 1000); }
   stopTicking() { if (this._tickHandle) clearInterval(this._tickHandle); this._tickHandle = null; }
 
+  _expireTemps() {
+    const t = this.s.profile?.privacy?.temp;
+    if (!t) return false;
+    let changed = false;
+    const now = Date.now();
+    for (const k of Object.keys(t)) {
+      if (t[k]?.expiresAt && t[k].expiresAt <= now) { delete t[k]; changed = true; }
+    }
+    return changed;
+  }
+
   tick() {
     const w = this.s.world;
     const me = this.s.profile;
     const muted = this.s.muted;
+    const reveals = this.s.reveals;
     const indexSeed = new Map(SAMPLE_PEOPLE.map(p => [p.id, p]));
+
+    let dirty = this._expireTemps();
 
     Object.entries(w).forEach(([id, p]) => {
       // 2D drift with reflection inside the ~12m venue square.
@@ -89,19 +152,31 @@ class Store {
         const seed = indexSeed.get(id);
         const cls = classify({ dist: p.dist, optIn: p.optIn, stable: p.stable, signal: p.signal });
         const shared = sharedKeys(me.hobbies, seed?.hobbies);
-        const gain = accrualPerTick({
-          zoneKey: cls.zone.key, stable: p.stable, signal: p.signal, optIn: p.optIn, sharedHobbyKeys: shared
-        });
-        if (gain > 0) {
-          const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, manualNotes: [] };
-          r.points = clamp(r.points + gain, -10000, 99999);
+        const sc = seed ? scoreCandidate(seed, me.prefs) : { pct: 0 };
+        const ctx = {
+          muted: !!muted[id],
+          zoneKey: cls.zone.key,
+          matchPct: sc.pct,
+          viewerReveal: !!reveals[id],
+          subjectReveal: !!reveals[id], // sample seeds inherit user reveal flag for simulation
+        };
+        // Subject's matrix decides whether rapport is allowed to accrue with viewer (me).
+        const allowAccrue = canSee(me, seed || { id }, 'countRapportWith', ctx);
+        if (allowAccrue) {
+          const gain = accrualPerTick({
+            zoneKey: cls.zone.key, stable: p.stable, signal: p.signal, optIn: p.optIn, sharedHobbyKeys: shared
+          });
+          if (gain > 0) {
+            const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, manualNotes: [] };
+            r.points = clamp(r.points + gain, -10000, 99999);
+          }
         }
       }
     });
 
     this.s.meta.ticks += 1;
     this.s.meta.lastTick = Date.now();
-    if (this.s.meta.ticks % 5 === 0) this.save();
+    if (dirty || this.s.meta.ticks % 5 === 0) this.save();
     bus.emit('tick');
   }
 

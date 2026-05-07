@@ -1,4 +1,5 @@
 // Person detail page — every layer's view of a single individual.
+// Honours the privacy matrix when displaying name/photo and gating reveal/message buttons.
 
 import { SAMPLE_PEOPLE, STATUS_DATING, STATUS_NETWORKING, PHYSICAL_FIELDS } from './data.js';
 import { scoreCandidate } from './engines/match.js';
@@ -6,6 +7,7 @@ import { classify } from './engines/proximity.js';
 import { resolveView } from './engines/identity.js';
 import { progress, MANUAL_DELTAS } from './engines/rapport.js';
 import { relate, hobbyMeta, rankFor } from './engines/hobbies.js';
+import { canSee, effectiveTier, tierMeta, axisMeta } from './engines/privacy.js';
 import { store } from './state.js';
 import { $, $$, escapeHtml, initials, colorFor, pct, fmtRel, fmtMin } from './util.js';
 
@@ -24,10 +26,30 @@ export function render(root, params) {
 
   const sc  = scoreCandidate(p, me.prefs);
   const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted });
-  const view = resolveView(me, p, sc.pct, { reveals: store.reveals, theirReveal: revealed, muted });
+  const ctx = {
+    muted,
+    zoneKey: cls.zone.key,
+    matchPct: sc.pct,
+    viewerReveal: revealed,
+    subjectReveal: revealed, // simulation: treat their reveal as mirroring yours
+  };
+  const view = resolveView(me, p, sc.pct, { reveals: store.reveals, theirReveal: revealed, muted, zoneKey: cls.zone.key });
   const rel = relate(me.hobbies, p.hobbies);
   const pr = progress(rapport.points || 0);
   const status = (p.intent === 'networking' ? STATUS_NETWORKING : STATUS_DATING).find(s => s.key === p.status);
+
+  const showsName = canSee(me, p, 'showName', ctx);
+  const showsHobbies = canSee(me, p, 'showHobbies', ctx);
+  const showsStatus = canSee(me, p, 'showStatus', ctx);
+  const canMessage = canSee(me, p, 'receiveMessages', ctx);
+  const canRequestReveal = canSee(me, p, 'receiveRevealRequests', ctx);
+  const isOnFloor = canSee(me, p, 'showOnFloor', ctx);
+
+  const headerLabel = showsName ? escapeHtml(p.name) : '@'+escapeHtml(p.alias);
+  const headerInitials = (view.shows === 'photo' || view.shows === 'reveal') && showsName
+    ? initials(p.name)
+    : view.shows === 'avatar' ? (p.alias||'').slice(0,2).toUpperCase()
+    : view.shows === 'glance' ? '·' : '×';
 
   root.innerHTML = `
     <section class="grid gap-6">
@@ -35,22 +57,24 @@ export function render(root, params) {
 
       <div class="card p-5 grid sm:grid-cols-[auto_1fr_auto] items-center gap-4">
         <span class="avatar w-20 h-20 text-xl" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">
-          ${view.shows === 'photo' || view.shows === 'reveal' ? initials(p.name) : (view.shows==='avatar' ? (p.alias||'').slice(0,2).toUpperCase() : '·')}
+          ${headerInitials}
         </span>
         <div>
-          <h1 class="font-display text-2xl font-semibold">${view.shows==='photo'||view.shows==='reveal' ? escapeHtml(p.name) : '@'+escapeHtml(p.alias)}</h1>
+          <h1 class="font-display text-2xl font-semibold">${headerLabel}</h1>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${escapeHtml(cls.zone.label)} · ${(w.dist||0).toFixed(1)}m</span>
             <span class="pill" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>
-            ${status ? `<span class="pill pill-iris">${escapeHtml(status.icon)} ${escapeHtml(status.label)}</span>` : ''}
+            ${showsStatus && status ? `<span class="pill pill-iris">${escapeHtml(status.icon)} ${escapeHtml(status.label)}</span>` : ''}
             <span class="pill" style="color:${pr.tier.color};border-color:${pr.tier.color}55">${escapeHtml(pr.tier.label)}</span>
-            ${rel.teacher ? `<span class="pill pill-sun">🎓 Teacher in ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
-            ${rel.student ? `<span class="pill pill-mint">📚 Student in ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
+            ${showsHobbies && rel.teacher ? `<span class="pill pill-sun">🎓 Teacher in ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
+            ${showsHobbies && rel.student ? `<span class="pill pill-mint">📚 Student in ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
+            ${!isOnFloor ? '<span class="pill pill-rose">Privacy: hidden from floor</span>' : ''}
           </div>
         </div>
         <div class="flex flex-col gap-1">
           <button class="btn btn-sm" id="toggle-mute">${muted?'Unmute':'Mute'}</button>
-          <button class="btn btn-sm ${revealed?'btn-rose':'btn-primary'}" id="toggle-reveal">${revealed?'Cancel reveal':'Flag for reveal'}</button>
+          <button class="btn btn-sm ${revealed?'btn-rose':'btn-primary'}" id="toggle-reveal" ${canRequestReveal?'':'disabled title="Their privacy denies reveal requests"'}>${revealed?'Cancel reveal':'Flag for reveal'}</button>
+          <button class="btn btn-sm" id="send-message" ${canMessage?'':'disabled title="Their privacy denies messages"'}>Message</button>
         </div>
       </div>
 
@@ -86,12 +110,13 @@ export function render(root, params) {
               <div class="card-soft p-2 text-xs flex items-center justify-between">
                 <span>${escapeHtml(n.note)}</span>
                 <span class="${n.delta>0?'text-mint-400':'text-rose-400'}">${n.delta>0?'+':''}${Math.round(n.delta)} · ${fmtRel(n.ts)}</span>
-              </div>`).join('') || '<div class="text-xs text-slate-500">No notes yet — proximity time will quietly accrue.</div>'}
+              </div>`).join('') || '<div class="text-xs text-slate-500">No notes yet — proximity time will quietly accrue (subject to their privacy).</div>'}
           </div>
         </div>
 
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Hobbies & skill ranks</h2>
+          ${showsHobbies ? `
           <div class="grid gap-2">
             ${(p.hobbies||[]).map(h => {
               const meta = hobbyMeta(h.key) || {label:h.key, icon:'🔹'};
@@ -112,7 +137,7 @@ export function render(root, params) {
                 </div>
               `;
             }).join('') || '<div class="text-sm text-slate-500">No hobbies on file.</div>'}
-          </div>
+          </div>` : `<p class="text-xs text-slate-500">Hidden by privacy (showHobbies: ${escapeHtml(tierMeta(effectiveTier(p,'showHobbies')).label)}).</p>`}
         </div>
 
         <div class="card p-4 grid gap-3 lg:col-span-2">
@@ -144,12 +169,15 @@ export function render(root, params) {
         </div>
 
         <div class="card p-4 grid gap-3">
-          <h2 class="font-display font-semibold text-lg">Identity & reveal</h2>
+          <h2 class="font-display font-semibold text-lg">Identity & privacy</h2>
           <div class="grid gap-1.5 text-sm">
             <div class="flex justify-between"><span>Their default mode</span><span class="text-slate-400">${escapeHtml(p.visMode)}</span></div>
             <div class="flex justify-between"><span>Your reveal flag</span><span class="text-slate-400">${revealed?'on':'off'}</span></div>
-            <div class="flex justify-between"><span>Match gate</span><span class="text-slate-400">${(me.visMatchGate*100).toFixed(0)}%</span></div>
+            <div class="flex justify-between"><span>Your match gate</span><span class="text-slate-400">${(me.visMatchGate*100).toFixed(0)}%</span></div>
             <div class="flex justify-between"><span>What you currently see</span><span class="text-slate-300 font-medium">${escapeHtml(view.shows)}</span></div>
+            <div class="flex justify-between"><span>Their showName tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'showName')).label)}</span></div>
+            <div class="flex justify-between"><span>Their showPhoto tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'showPhoto')).label)}</span></div>
+            <div class="flex justify-between"><span>Their messages tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'receiveMessages')).label)}</span></div>
           </div>
           <p class="text-[11px] text-slate-500">${view.reasons.join(' · ') || '—'}</p>
         </div>
@@ -158,7 +186,14 @@ export function render(root, params) {
   `;
 
   $('#toggle-mute', root).addEventListener('click', () => { store.toggleMute(p.id); render(root, params); });
-  $('#toggle-reveal', root).addEventListener('click', () => { store.toggleReveal(p.id); render(root, params); });
+  $('#toggle-reveal', root).addEventListener('click', () => {
+    if (!canRequestReveal && !revealed) return;
+    store.toggleReveal(p.id); render(root, params);
+  });
+  const sendBtn = $('#send-message', root);
+  if (sendBtn && !sendBtn.disabled) {
+    sendBtn.addEventListener('click', () => alert('Messaging UI lands in v1.1. Privacy gate already enforced.'));
+  }
   $$('button[data-rate]', root).forEach(b => b.addEventListener('click', () => {
     store.addManualRapport(p.id, Number(b.dataset.rate), b.textContent.trim());
     render(root, params);

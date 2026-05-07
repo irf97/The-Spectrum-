@@ -4,16 +4,6 @@ import { PHYSICAL_FIELDS, VIS_MODES, STATUS_DATING, STATUS_NETWORKING } from './
 import { store } from './state.js';
 import { $, $$, escapeHtml } from './util.js';
 
-function selectField(label, value, options, onChange) {
-  return `
-    <label class="grid gap-1">
-      <span class="text-xs text-slate-400">${escapeHtml(label)}</span>
-      <select class="select" data-field="${label}">
-        ${options.map(o => `<option ${o===value?'selected':''}>${escapeHtml(o)}</option>`).join('')}
-      </select>
-    </label>`;
-}
-
 export function render(root) {
   const me = store.profile;
 
@@ -25,7 +15,10 @@ export function render(root) {
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">${escapeHtml(me.name)} <span class="text-slate-500">@${escapeHtml(me.alias)}</span></h1>
           <p class="text-sm text-slate-400 mt-1 max-w-2xl">Your profile lives in this browser only. The Spectrum never uploads it.</p>
         </div>
-        <button id="reset" class="btn btn-rose">Reset everything</button>
+        <div class="flex gap-2">
+          <a href="#/privacy" class="btn btn-primary">Privacy matrix</a>
+          <button id="reset" class="btn btn-rose">Reset everything</button>
+        </div>
       </header>
 
       <div class="grid lg:grid-cols-2 gap-6">
@@ -51,6 +44,7 @@ export function render(root) {
               <input class="input" id="f-gate" type="number" min="0" max="1" step="0.05" value="${me.visMatchGate}" />
             </label>
           </div>
+          <p class="text-[11px] text-slate-500">For finer-grained control over what each person sees of you, edit the <a href="#/privacy" class="text-iris-400 hover:underline">privacy matrix</a>.</p>
         </div>
 
         <div class="card p-4 grid gap-3">
