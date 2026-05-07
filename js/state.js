@@ -121,6 +121,13 @@ function migrate(s) {
   delete p.visMode;
   delete p.intent;
 
+  // Rename legacy gender 'Non-binary' to 'Bisexual' across all personas.
+  for (const m of ['dating', 'networking']) {
+    for (const persona of p[m].personas) {
+      if (persona.self?.gender === 'Non-binary') persona.self.gender = 'Bisexual';
+    }
+  }
+
   p.privacy = p.privacy || {};
   p.privacy.matrix = { ...defaultMatrix(), ...(p.privacy.matrix || {}) };
   p.privacy.temp   = p.privacy.temp || {};

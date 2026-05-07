@@ -7,7 +7,9 @@ let activeName = null;
 const DEFAULT_PATH = '/status';
 
 export function defineRoute({ path, name, label, icon, render }) {
-  routes.push({ path, name, label, icon, render });
+  const existing = routes.findIndex(r => r.name === name);
+  if (existing >= 0) routes[existing] = { path, name, label, icon, render };
+  else routes.push({ path, name, label, icon, render });
 }
 
 function match(hash) {
@@ -40,8 +42,9 @@ export function renderNav() {
   ).join('');
 }
 
+let _onChange = null;
 export function start() {
-  const onChange = () => {
+  _onChange = (scroll = false) => {
     const view = $('#view');
     const { route, params } = match(location.hash);
     activeName = route?.name;
@@ -51,12 +54,14 @@ export function start() {
     view.classList.add('fade-in');
     view.innerHTML = '';
     route?.render(view, params);
-    window.scrollTo(0, 0);
+    if (scroll) window.scrollTo(0, 0);
   };
-  window.addEventListener('hashchange', onChange);
+  window.addEventListener('hashchange', () => _onChange(true));
   if (!location.hash) location.hash = `#${DEFAULT_PATH}`;
-  onChange();
+  _onChange(true);
 }
+
+export function refresh() { _onChange?.(false); }
 
 export function go(path) {
   if (location.hash === '#' + path) return;

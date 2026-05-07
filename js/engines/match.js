@@ -80,13 +80,13 @@ function dimensionSimilarity(options, target, got) {
 function labelFromGenderKey(key) {
   if (key === 'woman') return 'Woman';
   if (key === 'man') return 'Man';
-  if (key === 'nonbinary') return 'Non-binary';
+  if (key === 'bisexual') return 'Bisexual';
   return null;
 }
 function genderKeyFromLabel(label) {
   if (label === 'Woman') return 'woman';
   if (label === 'Man') return 'man';
-  if (label === 'Non-binary') return 'nonbinary';
+  if (label === 'Bisexual') return 'bisexual';
   return 'any';
 }
 

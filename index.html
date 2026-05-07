@@ -10,7 +10,7 @@
   <script>
     // Cache killer.
     (function () {
-      var APP_VER = '15';
+      var APP_VER = '16';
       try {
         if (localStorage.getItem('app_ver') !== APP_VER) {
           localStorage.setItem('app_ver', APP_VER);
@@ -63,7 +63,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/spectrum.css?v=15" />
+  <link rel="stylesheet" href="./css/spectrum.css?v=16" />
 </head>
 <body class="antialiased font-sans">
   <div id="app-root" class="min-h-screen flex flex-col">
@@ -72,7 +72,7 @@
         <a href="#/floor" class="flex items-center gap-2 group">
           <span class="block w-7 h-7 rounded-full ring-2 group-hover:ring-iris-500/50 transition" style="background:linear-gradient(135deg, var(--mint), var(--iris));"></span>
           <span class="font-display font-semibold tracking-tight text-lg">The&nbsp;Spectrum</span>
-          <span class="hidden sm:inline text-xs build-label ml-1">build v15</span>
+          <span class="hidden sm:inline text-xs build-label ml-1">build v16</span>
         </a>
         <nav id="nav" class="ml-auto flex items-center gap-1 overflow-x-auto whitespace-nowrap"></nav>
         <div id="mode-cluster" class="ml-2 hidden md:flex flex-col items-stretch gap-1 text-xs">
@@ -87,11 +87,11 @@
     <footer class="border-t mt-10" style="border-color:var(--line)">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row gap-2 sm:items-center justify-between text-xs text-themed-mute">
         <p>The Spectrum augments in-person noticing — it does not replace it. Social proximity buckets, never exact locations.</p>
-        <p>Local-first · build v15</p>
+        <p>Local-first · build v16</p>
       </div>
     </footer>
   </div>
 
-  <script type="module" src="./js/app.js?v=15"></script>
+  <script type="module" src="./js/app.js?v=16"></script>
 </body>
 </html>

@@ -99,32 +99,32 @@ export const THEMES = [
 export const GENDERS = [
   { key:'woman',     label:'Woman',      icon:'♀' },
   { key:'man',       label:'Man',        icon:'♂' },
-  { key:'nonbinary', label:'Non-binary', icon:'⚧' },
+  { key:'bisexual', label:'Bisexual', icon:'⚧' },
   { key:'any',       label:'Any',        icon:'⊕' },
 ];
 
 const FIELD_SCHEMA = [
-  { key:'gender',    label:'Gender',     weight: 1.0, options: ['Woman','Man','Non-binary'] },
+  { key:'gender',    label:'Gender',     weight: 1.0, options: ['Woman','Man','Bisexual'] },
   { key:'age',       label:'Age band',   weight: 0.8, options: ['18–24','25–29','30–34','35–39','40–49','50+'] },
   { key:'height',    label:'Height',     weight: 0.6, options: ['<160cm','160–170','170–180','180–190','190+'] },
   { key:'body',      label:'Body',       weight: 0.7, optionsByGender: {
     woman:     ['Slim','Petite','Athletic','Average','Curvy','Voluptuous','Plus'],
     man:       ['Slim','Lean','Athletic','Average','Stocky','Muscular','Plus'],
-    nonbinary: ['Slim','Athletic','Average','Curvy','Muscular','Plus'],
+    bisexual: ['Slim','Athletic','Average','Curvy','Muscular','Plus'],
     any:       ['Slim','Petite','Lean','Athletic','Average','Stocky','Curvy','Muscular','Voluptuous','Plus'],
   }},
   { key:'face',      label:'Face',       weight: 0.5, options: ['Soft','Sharp','Symmetric','Expressive','Striking'] },
   { key:'hair',      label:'Hair',       weight: 0.4, optionsByGender: {
     woman:     ['Pixie','Short','Bob','Medium','Long','Very long','Curly','Wavy','Straight','Color-treated','Shaved','Locs','Braids'],
     man:       ['Buzz','Short','Medium','Long','Curly','Wavy','Straight','Shaved','Color-treated','Locs'],
-    nonbinary: ['Short','Medium','Long','Curly','Straight','Shaved','Color-treated'],
+    bisexual: ['Short','Medium','Long','Curly','Straight','Shaved','Color-treated'],
     any:       ['Pixie','Buzz','Short','Bob','Medium','Long','Very long','Curly','Wavy','Straight','Color-treated','Shaved','Locs','Braids'],
   }},
   { key:'style',     label:'Style',      weight: 0.6, options: ['Casual','Smart-casual','Streetwear','Formal','Bohemian','Sporty','Alt','Vintage','Minimal','Goth','Preppy'] },
   { key:'grooming',  label:'Grooming',   weight: 0.4, optionsByGender: {
     woman:     ['Clean','Natural','Polished','Glamorous','Minimal','Bold makeup','Tattooed','Pierced'],
     man:       ['Clean','Stubble','Trimmed beard','Full beard','Long beard','Hairless','Polished','Tattooed','Pierced'],
-    nonbinary: ['Clean','Trimmed','Polished','Natural','Hairless','Tattooed','Pierced'],
+    bisexual: ['Clean','Trimmed','Polished','Natural','Hairless','Tattooed','Pierced'],
     any:       ['Clean','Trimmed','Stubble','Trimmed beard','Full beard','Polished','Natural','Glamorous','Hairless','Tattooed','Pierced'],
   }},
   { key:'energy',    label:'Energy',     weight: 0.5, options: ['Calm','Quiet','Easy','Lively','High','Wired'] },
@@ -312,7 +312,7 @@ const PEOPLE_SEED = [
   { id:'p3',  name:'Lena Akagi',    alias:'lk',     gender:'Woman',      age:'25–29', height:'160–170', body:'Curvy',     face:'Soft',      hair:'Curly',     style:'Bohemian',     grooming:'Polished',       energy:'Quiet',  vibe:'Soft',      lifestyle:'Settled',     languages:'English', culture:'Mixed',            smoking:'Socially',  drinking:'Socially', education:'Bachelor',
     intent:'dating',     status:'warm',     visMode:'avatar',
     hobbies:[{key:'painting',skill:71,role:'peers'},{key:'yoga',skill:40,role:'practicing'},{key:'languages',skill:55,role:'teacher'}], dist:7.5, stable:true,  optIn:true,  signal:0.6 },
-  { id:'p4',  name:'Jules Romero',  alias:'jules',  gender:'Non-binary', age:'30–34', height:'170–180', body:'Athletic',  face:'Striking',  hair:'Shaved',    style:'Smart-casual', grooming:'Clean',          energy:'High',   vibe:'Sharp',     lifestyle:'Exploring',   languages:'Spanish', culture:'Latin',            smoking:'No',        drinking:'Rarely',   education:'Master',
+  { id:'p4',  name:'Jules Romero',  alias:'jules',  gender:'Bisexual', age:'30–34', height:'170–180', body:'Athletic',  face:'Striking',  hair:'Shaved',    style:'Smart-casual', grooming:'Clean',          energy:'High',   vibe:'Sharp',     lifestyle:'Exploring',   languages:'Spanish', culture:'Latin',            smoking:'No',        drinking:'Rarely',   education:'Master',
     intent:'networking', status:'focused',  visMode:'glance',
     hobbies:[{key:'design',skill:82,role:'peers'},{key:'cycling',skill:60,role:'practicing'},{key:'cooking',skill:35,role:'student'}], dist:6.0, stable:false, optIn:true,  signal:0.5 },
   { id:'p5',  name:'Idris Cole',    alias:'idris',  gender:'Man',        age:'35–39', height:'180–190', body:'Muscular',  face:'Sharp',     hair:'Short',     style:'Casual',       grooming:'Full beard',     energy:'Lively', vibe:'Steady',    lifestyle:'Settled',     languages:'English', culture:'African',          smoking:'No',        drinking:'Socially', education:'Bachelor',
@@ -339,7 +339,7 @@ const PEOPLE_SEED = [
   { id:'p12', name:'Mira Ó Coileáin',alias:'mira',  gender:'Woman',      age:'18–24', height:'160–170', body:'Slim',      face:'Soft',      hair:'Long',      style:'Bohemian',     grooming:'Polished',       energy:'Easy',   vibe:'Soft',      lifestyle:'Local',       languages:'English', culture:'European',         smoking:'No',        drinking:'Socially', education:'Bachelor',
     intent:'dating',     status:'warm',     visMode:'hybrid',
     hobbies:[{key:'yoga',skill:68,role:'peers'},{key:'pottery',skill:45,role:'practicing'},{key:'astronomy',skill:25,role:'student'}], dist:4.6, stable:true,  optIn:true,  signal:0.78 },
-  { id:'p13', name:'Sam Greaves',   alias:'sam',    gender:'Non-binary', age:'35–39', height:'180–190', body:'Plus',      face:'Expressive',hair:'Shaved',    style:'Casual',       grooming:'Tattooed',       energy:'Lively', vibe:'Warm',      lifestyle:'Settled',     languages:'English', culture:'Caribbean',        smoking:'Quitting',  drinking:'Often',    education:'Trade',
+  { id:'p13', name:'Sam Greaves',   alias:'sam',    gender:'Bisexual', age:'35–39', height:'180–190', body:'Plus',      face:'Expressive',hair:'Shaved',    style:'Casual',       grooming:'Tattooed',       energy:'Lively', vibe:'Warm',      lifestyle:'Settled',     languages:'English', culture:'Caribbean',        smoking:'Quitting',  drinking:'Often',    education:'Trade',
     intent:'networking', status:'circulating',visMode:'photo',
     hobbies:[{key:'baking',skill:72,role:'teacher'},{key:'gardening',skill:60,role:'peers'},{key:'writing',skill:50,role:'practicing'}], dist:8.0, stable:false, optIn:true,  signal:0.45 },
   { id:'p14', name:'Yui Tanaka',    alias:'yui',    gender:'Woman',      age:'25–29', height:'160–170', body:'Athletic',  face:'Symmetric', hair:'Medium',    style:'Streetwear',   grooming:'Clean',          energy:'Quiet',  vibe:'Reserved',  lifestyle:'Exploring',   languages:'Japanese',culture:'East-Asian',       smoking:'No',        drinking:'No',       education:'Bachelor',
@@ -388,7 +388,7 @@ function defaultDatingPersona() {
     status: 'open',
     visMode: 'hybrid',
     self: {
-      gender: 'Non-binary', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
+      gender: 'Bisexual', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
       hair: 'Short', style: 'Smart-casual', grooming: 'Clean',
       energy: 'Easy', vibe: 'Curious', lifestyle: 'Building', languages: 'English', culture: 'European',
       smoking: 'No', drinking: 'Socially', education: 'Master'

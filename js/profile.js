@@ -2,16 +2,15 @@
 
 import {
   fieldsFor, GENDERS, VIS_MODES, STATUS_DATING, STATUS_NETWORKING,
-  THEMES, NETWORKING_FIELDS, PERSONA_PRESETS, PERSONA_AVATAR_EMOJI, PERSONA_AVATAR_PALETTE
+  NETWORKING_FIELDS, PERSONA_PRESETS, PERSONA_AVATAR_EMOJI, PERSONA_AVATAR_PALETTE
 } from './data.js';
 import { store } from './state.js';
-import { setTheme, currentTheme } from './app.js';
 import { $, $$, escapeHtml } from './util.js';
 
 function selfFieldKey(self) {
   if (self?.gender === 'Woman') return 'woman';
   if (self?.gender === 'Man') return 'man';
-  if (self?.gender === 'Non-binary') return 'nonbinary';
+  if (self?.gender === 'Bisexual') return 'bisexual';
   return 'any';
 }
 
@@ -33,15 +32,6 @@ function selfFieldRow(f, self, scope, personaId) {
         ${f.options.map(o => `<option ${cur===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
       </select>
     </label>`;
-}
-
-function themeTile(t, active) {
-  return `
-    <button class="theme-swatch text-left" aria-current="${active?'true':'false'}" data-theme="${t.key}">
-      <div class="swatch-row mb-2">${t.swatches.map(s => `<span style="background:${escapeHtml(s)}"></span>`).join('')}</div>
-      <div class="font-display font-semibold">${escapeHtml(t.label)}</div>
-      <div class="text-[11px] text-themed-mute mt-0.5">${escapeHtml(t.copy)}</div>
-    </button>`;
 }
 
 function personaCard(persona, active, modeKey) {
@@ -173,7 +163,6 @@ function modeBlock(modeKey, me) {
 
 export function render(root) {
   const me = store.profile;
-  const themeKey = currentTheme();
 
   root.innerHTML = `
     <section class="grid gap-6">
@@ -212,16 +201,6 @@ export function render(root) {
 
       ${modeBlock('dating', me)}
       ${modeBlock('networking', me)}
-
-      <div class="card p-4 grid gap-3">
-        <div class="flex items-center justify-between flex-wrap gap-2">
-          <h2 class="font-display font-semibold text-lg">Theme</h2>
-          <span class="text-[11px] text-themed-mute">Press <span class="kbd">T</span> to cycle</span>
-        </div>
-        <div class="grid sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          ${THEMES.map(t => themeTile(t, t.key === themeKey)).join('')}
-        </div>
-      </div>
     </section>
   `;
 
@@ -230,12 +209,6 @@ export function render(root) {
   $('#f-alias', root).addEventListener('input', e => store.setProfile({ alias: e.target.value || 'you' }));
   $('#f-gate', root).addEventListener('input',  e => store.setProfile({ visMatchGate: Number(e.target.value) }));
   $('#f-optin', root).addEventListener('click', () => { store.setProfile({ optIn: !store.profile.optIn }); render(root); });
-
-  // Theme tiles
-  $$('button[data-theme]', root).forEach(b => b.addEventListener('click', () => {
-    setTheme(b.dataset.theme);
-    render(root);
-  }));
 
   // Mode enable / disable
   $$('button[data-toggle-mode-enabled]', root).forEach(b => b.addEventListener('click', () => {

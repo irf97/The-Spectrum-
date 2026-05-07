@@ -1,4 +1,4 @@
-import { defineRoute, start, renderNav } from './router.js';
+import { defineRoute, start, renderNav, refresh } from './router.js';
 import { store } from './state.js';
 import { bus, $, escapeHtml } from './util.js';
 import { THEMES } from './data.js';
@@ -12,6 +12,7 @@ import * as Layer4    from './layer4.js';
 import * as Layer5    from './layer5.js';
 import * as Profile   from './profile.js';
 import * as Privacy   from './privacy.js';
+import * as Theme     from './theme.js';
 import * as People    from './people.js';
 
 defineRoute({ path: '/floor',     name:'floor',     label:'Floor',     icon:'⊙', render: Floor.render });
@@ -23,6 +24,7 @@ defineRoute({ path: '/identity',  name:'identity',  label:'Identity',  icon:'④
 defineRoute({ path: '/rapport',   name:'rapport',   label:'Rapport',   icon:'⑤', render: Layer5.render });
 defineRoute({ path: '/profile',   name:'profile',   label:'Profile',   icon:'◉', render: Profile.render });
 defineRoute({ path: '/privacy',   name:'privacy',   label:'Privacy',   icon:'🔒', render: Privacy.render });
+defineRoute({ path: '/theme',     name:'theme',     label:'Theme',     icon:'🎨', render: Theme.render });
 
 defineRoute({ path: '/people/:id', name:'person',  label:null, render: People.render });
 
@@ -99,11 +101,14 @@ bus.on('state:changed', paintPills);
 
 const modePill = $('#mode-pill');
 if (modePill) modePill.addEventListener('click', () => {
-  if (modePill.disabled) return;
+  // If the target mode is disabled, auto-enable it so the toggle always works.
+  const target = store.mode === 'dating' ? 'networking' : 'dating';
+  if (!store.profile[target]?.enabled) store.setEnabled(target, true);
   store.toggleMode();
+  refresh();
 });
 const personaPill = $('#persona-pill');
-if (personaPill) personaPill.addEventListener('click', () => store.cyclePersona(1));
+if (personaPill) personaPill.addEventListener('click', () => { store.cyclePersona(1); refresh(); });
 
 // ----- Hotkeys --------------------------------------------------------------
 
@@ -119,9 +124,14 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'i') location.hash = '#/profile';
   if (e.key === 'p') location.hash = '#/privacy';
   if (e.key === 't' || e.key === 'T') cycleTheme();
-  if (e.key === 'm' || e.key === 'M') store.toggleMode();
-  if (e.key === '[') store.cyclePersona(-1);
-  if (e.key === ']') store.cyclePersona(1);
+  if (e.key === 'm' || e.key === 'M') {
+    const target = store.mode === 'dating' ? 'networking' : 'dating';
+    if (!store.profile[target]?.enabled) store.setEnabled(target, true);
+    store.toggleMode();
+    refresh();
+  }
+  if (e.key === '[') { store.cyclePersona(-1); refresh(); }
+  if (e.key === ']') { store.cyclePersona(1);  refresh(); }
 });
 
 export { setTheme, currentTheme };
