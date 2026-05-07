@@ -1,4 +1,4 @@
-// Static reference data: status spectra, hobby catalog, sample people, privacy matrix, gender-aware fields.
+// Static reference data: status spectra, hobby catalog, sample people, privacy matrix, gender-aware fields, themes.
 
 // ---------- Layer 1: Real-Life Social Status ---------------------------------
 
@@ -24,17 +24,27 @@ export const STATUS_NETWORKING = [
   { key: 'offline',     label: 'Offline',     icon: '⏸',  desc: 'Not networking right now.' },
 ];
 
+// ---------- Themes -----------------------------------------------------------
+
+export const THEMES = [
+  { key:'default', label:'Mint Iris',  swatches:['#3ee0b6','#7b6cff','#ffb43c','#ff5d80'], copy:'Cool cyan + violet · the original.' },
+  { key:'aurora',  label:'Aurora',     swatches:['#78f3d3','#6aa8ff','#c8a8ff','#ff8ad0'], copy:'Soft northern lights.' },
+  { key:'neon',    label:'Neon',       swatches:['#00ffd1','#ff00ff','#ffe338','#ff2080'], copy:'High-contrast cyberpunk.' },
+  { key:'sunset',  label:'Sunset',     swatches:['#ffb380','#b56cff','#ffd073','#ff7593'], copy:'Warm peach + lavender.' },
+  { key:'forest',  label:'Forest',     swatches:['#5eb888','#8aa28f','#d4b366','#c97373'], copy:'Sage + moss + rust.' },
+  { key:'ember',   label:'Ember',      swatches:['#ff8a3c','#e23e62','#ffd073','#ff5d80'], copy:'Hot coals · warm red + gold.' },
+  { key:'mono',    label:'Mono',       swatches:['#f0f0f0','#c0c0c0','#a0a0a0','#808080'], copy:'Pure grayscale.' },
+];
+
 // ---------- Gender + gender-aware physical schema ---------------------------
 
 export const GENDERS = [
   { key:'woman',     label:'Woman',      icon:'♀' },
   { key:'man',       label:'Man',        icon:'♂' },
   { key:'nonbinary', label:'Non-binary', icon:'⚧' },
-  { key:'any',       label:'Any',        icon:'⊕' }, // valid only for prefs ("interested in")
+  { key:'any',       label:'Any',        icon:'⊕' },
 ];
 
-// Master schema. Fields with `optionsByGender` change their options based on the
-// subject's gender; fields with `options` are universal.
 const FIELD_SCHEMA = [
   { key:'gender',    label:'Gender',     weight: 1.0, options: ['Woman','Man','Non-binary'] },
   { key:'age',       label:'Age band',   weight: 0.8, options: ['18–24','25–29','30–34','35–39','40–49','50+'] },
@@ -80,7 +90,6 @@ export function fieldsFor(genderKey) {
   });
 }
 
-// Backwards-compat: legacy code that imports PHYSICAL_FIELDS gets the universal set.
 export const PHYSICAL_FIELDS = fieldsFor('any');
 
 export const MATCH_BUCKETS = [
@@ -92,8 +101,6 @@ export const MATCH_BUCKETS = [
   { key: 'unknown',  label: 'Unknown',  min: -1,   swatch:'#475569', tone:'rep-neutral',  copy: 'Not enough visible data to score.' },
 ];
 
-// ---------- Layer 3: Proximity zones (10m world) ----------------------------
-
 export const PROX_ZONES = [
   { key:'reach',    label:'Reach',    color:'#78f3d3', range:[0,2],     copy:'Eye-contact range; same table.' },
   { key:'nearby',   label:'Nearby',   color:'#9b8cff', range:[2,5],     copy:'Same booth or circle.' },
@@ -104,8 +111,6 @@ export const PROX_ZONES = [
   { key:'outrange', label:'OutRange', color:'#334155', range:[],        copy:'Outside the 10m bubble.' },
   { key:'unknown',  label:'Unknown',  color:'#1e293b', range:[],        copy:'Not enough signal to classify.' },
 ];
-
-// ---------- Layer 4: Identity & Anonymity reveal modes -----------------------
 
 export const VIS_MODES = [
   { key:'avatar', label:'Avatar', icon:'🟣', copy:'Symbolic identity only.' },
@@ -125,14 +130,12 @@ export const REVEAL_CHANNELS = [
 ];
 
 export const REVEAL_TTL_OPTIONS = [
-  { key:'5m',     label:'5 min',     ms: 5 * 60 * 1000 },
-  { key:'30m',    label:'30 min',    ms: 30 * 60 * 1000 },
-  { key:'2h',     label:'2 hours',   ms: 2 * 60 * 60 * 1000 },
-  { key:'venue',  label:'Until I leave', ms: 6 * 60 * 60 * 1000 },
-  { key:'forever',label:'Permanent',  ms: 365 * 24 * 60 * 60 * 1000 },
+  { key:'5m',      label:'5 min',         ms: 5 * 60 * 1000 },
+  { key:'30m',     label:'30 min',        ms: 30 * 60 * 1000 },
+  { key:'2h',      label:'2 hours',       ms: 2 * 60 * 60 * 1000 },
+  { key:'venue',   label:'Until I leave', ms: 6 * 60 * 60 * 1000 },
+  { key:'forever', label:'Permanent',     ms: 365 * 24 * 60 * 60 * 1000 },
 ];
-
-// ---------- Layer 5: Rapport tiers -------------------------------------------
 
 export const REP_TIERS = [
   { key:'hated',      label:'Hated',      min: -10000, color:'#ff5d80', toneClass:'rep-hated',      copy:'Active aversion; avoid contact.' },
@@ -192,8 +195,6 @@ export const HOBBY_ROLES = [
   { key:'peers',      label:'Looking for peers',   icon:'🤝' },
 ];
 
-// ---------- Privacy matrix ---------------------------------------------------
-
 export const AUDIENCE_TIERS = [
   { key:'nobody',         label:'Nobody',        short:'×',  swatch:'#94a3b8', copy:'Nothing visible.' },
   { key:'reveal_mutual',  label:'Mutual reveal', short:'⇋',  swatch:'#9b8cff', copy:'Only after both sides flag reveal.' },
@@ -242,8 +243,6 @@ export const TEMP_DURATIONS = [
 export function defaultMatrix() {
   return Object.fromEntries(PRIVACY_AXES.map(a => [a.key, a.defaultTier]));
 }
-
-// ---------- Sample population (10m venue, gender + new traits) --------------
 
 const PEOPLE_SEED = [
   { id:'p1',  name:'Mara Voss',     alias:'mv',     gender:'Woman',      age:'25–29', height:'170–180', body:'Athletic',  face:'Sharp',     hair:'Long',      style:'Smart-casual', grooming:'Clean',          energy:'Lively', vibe:'Curious',   lifestyle:'Building',    languages:'English', culture:'European',         smoking:'No',        drinking:'Socially', education:'Master',
@@ -298,7 +297,6 @@ const PEOPLE_SEED = [
 
 export const SAMPLE_PEOPLE = PEOPLE_SEED;
 
-// Default user profile (first-run only)
 export const DEFAULT_PROFILE = () => ({
   id: 'me',
   name: 'You',
@@ -309,44 +307,20 @@ export const DEFAULT_PROFILE = () => ({
   visMatchGate: 0.5,
   optIn: true,
   self: {
-    gender: 'Non-binary',
-    age: '25–29',
-    height: '170–180',
-    body: 'Athletic',
-    face: 'Symmetric',
-    hair: 'Short',
-    style: 'Smart-casual',
-    grooming: 'Clean',
-    energy: 'Easy',
-    vibe: 'Curious',
-    lifestyle: 'Building',
-    languages: 'English',
-    culture: 'European',
-    smoking: 'No',
-    drinking: 'Socially',
-    education: 'Master'
+    gender: 'Non-binary', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
+    hair: 'Short', style: 'Smart-casual', grooming: 'Clean',
+    energy: 'Easy', vibe: 'Curious', lifestyle: 'Building', languages: 'English', culture: 'European',
+    smoking: 'No', drinking: 'Socially', education: 'Master'
   },
   prefs: {
     gender: 'any',
     filters:  { age: ['25–29','30–34'] },
     weights:  Object.fromEntries(PHYSICAL_FIELDS.map(f => [f.key, f.weight])),
     targets:  {
-      gender: '',
-      age: '25–29',
-      height: '170–180',
-      body: 'Athletic',
-      face: 'Symmetric',
-      hair: 'Long',
-      style: 'Smart-casual',
-      grooming: 'Clean',
-      energy: 'Lively',
-      vibe: 'Warm',
-      lifestyle: 'Building',
-      languages: '',
-      culture: '',
-      smoking: 'No',
-      drinking: 'Socially',
-      education: ''
+      gender: '', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
+      hair: 'Long', style: 'Smart-casual', grooming: 'Clean',
+      energy: 'Lively', vibe: 'Warm', lifestyle: 'Building', languages: '', culture: '',
+      smoking: 'No', drinking: 'Socially', education: ''
     },
     excluded: {}
   },
@@ -366,6 +340,6 @@ export const DEFAULT_PROFILE = () => ({
     glance: { blur: 3, saturate: 0.7 },
     autoRevoke: { onStatusChange: true, onLeaveRoom: false, onMute: true },
     revealTtlKey: '2h',
-    history: [] // [{ ts, personId, channel, action }]
+    history: []
   }
 });
