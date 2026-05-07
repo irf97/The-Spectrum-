@@ -37,7 +37,7 @@ function axisRow(me, group, label) {
                   <span class="font-medium text-sm">${escapeHtml(a.label)}</span>
                   ${temp ? `<span class="pill pill-sun" title="Temporary override">⏱ expires ${fmtRel(temp.expiresAt)}</span>` : ''}
                 </div>
-                <div class="text-[11px] text-slate-500">${escapeHtml(a.copy)}</div>
+                <div class="text-[11px] text-themed-mute">${escapeHtml(a.copy)}</div>
               </div>
               <div>
                 <select class="select" data-tier="${a.key}">${tierOptionsFor(a.key, tier)}</select>
@@ -76,7 +76,7 @@ function previewPanel(me, world, muted, reveals) {
   return `
     <div class="card p-4 grid gap-2">
       <h3 class="font-display font-semibold">What others see right now</h3>
-      <p class="text-xs text-slate-500">Based on the ${visible} sample people in the room. Each row counts how many of them currently meet the gate for this axis.</p>
+      <p class="text-xs text-themed-mute">Based on the ${visible} sample people in the room. Each row counts how many of them currently meet the gate for this axis.</p>
       <div class="grid sm:grid-cols-2 gap-2 mt-1">
         ${Object.entries(counts).map(([k,v]) => {
           const a = axisMeta(k); if (!a) return '';
@@ -84,10 +84,10 @@ function previewPanel(me, world, muted, reveals) {
             <div class="card-soft p-3 flex items-center justify-between">
               <div>
                 <div class="text-sm">${escapeHtml(a.label)}</div>
-                <div class="text-[11px] text-slate-500">${escapeHtml(tierMeta(effectiveTier(me, k)).label)}</div>
+                <div class="text-[11px] text-themed-mute">${escapeHtml(tierMeta(effectiveTier(me, k)).label)}</div>
               </div>
               <div class="text-right">
-                <div class="font-display font-semibold text-lg">${v}<span class="text-slate-500 text-sm">/${visible}</span></div>
+                <div class="font-display font-semibold text-lg">${v}<span class="text-themed-mute text-sm">/${visible}</span></div>
               </div>
             </div>`;
         }).join('')}
@@ -106,7 +106,7 @@ function presetRow() {
               <span class="text-lg">${p.icon}</span>
               <span class="font-medium">${escapeHtml(p.label)}</span>
             </div>
-            <div class="text-[11px] text-slate-500">${escapeHtml(p.copy)}</div>
+            <div class="text-[11px] text-themed-mute">${escapeHtml(p.copy)}</div>
           </button>`).join('')}
       </div>
     </div>`;
@@ -127,7 +127,7 @@ export function render(root) {
           <div>
             <p class="h-eyebrow">Profile · Privacy</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Privacy matrix</h1>
-            <p class="text-sm text-slate-400 mt-1 max-w-2xl">Per-action audience tiers. Each row sets who can see / do this with you. Temporary overrides expire on a timer; presets reset all rows at once.</p>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Per-action audience tiers. Each row sets who can see / do this with you. Temporary overrides expire on a timer; presets reset all rows at once.</p>
           </div>
           <div class="flex gap-2">
             <a href="#/profile" class="btn">Back to profile</a>
@@ -155,7 +155,7 @@ export function render(root) {
                   <span class="text-lg" style="color:${t.swatch}">${t.short}</span>
                   <span class="font-medium text-sm">${escapeHtml(t.label)}</span>
                 </div>
-                <div class="text-[11px] text-slate-500">${escapeHtml(t.copy)}</div>
+                <div class="text-[11px] text-themed-mute">${escapeHtml(t.copy)}</div>
               </div>`).join('')}
           </div>
         </div>
