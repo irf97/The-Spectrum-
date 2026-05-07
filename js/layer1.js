@@ -11,7 +11,7 @@ function statusCard(status, currentKey, mode) {
             data-mode="${mode}" data-status="${status.key}">
       <span class="text-xl leading-none">${status.icon}</span>
       <span class="font-display font-semibold">${escapeHtml(status.label)}</span>
-      <span class="text-xs text-slate-400">${escapeHtml(status.desc)}</span>
+      <span class="text-xs text-themed-soft">${escapeHtml(status.desc)}</span>
     </button>`;
 }
 
@@ -23,7 +23,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 1</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Real-Life Social Status</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Two real-life spectrums — Dating and Networking. The status you set drives what every other layer filters for, and how others see you.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Two real-life spectrums — Dating and Networking. The status you set drives what every other layer filters for, and how others see you.</p>
         </div>
         <div class="flex gap-2 items-center">
           <span class="pill pill-iris"><span class="dot"></span> Intent: ${escapeHtml(me.intent)}</span>
@@ -40,7 +40,7 @@ export function render(root) {
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="font-display font-semibold text-lg">Dating</h2>
-              <p class="text-xs text-slate-400">${escapeHtml(STATUS_DATING.find(s=>s.key===me.status.dating)?.desc || '')}</p>
+              <p class="text-xs text-themed-soft">${escapeHtml(STATUS_DATING.find(s=>s.key===me.status.dating)?.desc || '')}</p>
             </div>
             <span class="pill pill-rose"><span class="dot"></span> ${escapeHtml(me.status.dating)}</span>
           </div>
@@ -53,7 +53,7 @@ export function render(root) {
           <div class="flex items-center justify-between mb-4">
             <div>
               <h2 class="font-display font-semibold text-lg">Networking</h2>
-              <p class="text-xs text-slate-400">${escapeHtml(STATUS_NETWORKING.find(s=>s.key===me.status.networking)?.desc || '')}</p>
+              <p class="text-xs text-themed-soft">${escapeHtml(STATUS_NETWORKING.find(s=>s.key===me.status.networking)?.desc || '')}</p>
             </div>
             <span class="pill pill-mint"><span class="dot"></span> ${escapeHtml(me.status.networking)}</span>
           </div>
@@ -65,7 +65,7 @@ export function render(root) {
 
       <div class="card p-4 sm:p-5">
         <h3 class="font-display font-semibold text-lg mb-3">How status changes everything</h3>
-        <ul class="grid sm:grid-cols-2 gap-2 text-sm text-slate-300">
+        <ul class="grid sm:grid-cols-2 gap-2 text-sm text-themed-soft">
           <li class="card-soft p-3"><b>Open</b> · You appear to all eligible matches in compatible zones.</li>
           <li class="card-soft p-3"><b>Selective / Focused</b> · Only Strong+ matches surface; reveal gate raised.</li>
           <li class="card-soft p-3"><b>Engaged</b> · Pings are softened; people see "in conversation" hints.</li>
