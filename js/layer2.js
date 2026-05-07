@@ -22,7 +22,7 @@ function fieldRow(f, prefs) {
       <div class="flex items-center justify-between">
         <div>
           <div class="font-display font-semibold">${escapeHtml(f.label)}</div>
-          <div class="text-xs text-slate-500">Weight ${(w*100).toFixed(0)}%</div>
+          <div class="text-xs text-themed-mute">Weight ${(w*100).toFixed(0)}%</div>
         </div>
         <input type="range" min="0" max="1" step="0.05" value="${w}" class="w-32" data-role="weight" />
       </div>
@@ -38,7 +38,7 @@ function fieldRow(f, prefs) {
           return `<button class="${cls}" data-role="opt" data-opt="${escapeHtml(opt)}" title="Click=target · Shift=filter · Alt=exclude">${escapeHtml(opt)}</button>`;
         }).join('')}
       </div>
-      <div class="text-[11px] text-slate-500">Click → set as ideal · Shift+Click → require · Alt+Click → exclude</div>
+      <div class="text-[11px] text-themed-mute">Click → set as ideal · Shift+Click → require · Alt+Click → exclude</div>
     </div>
   `;
 }
@@ -57,7 +57,7 @@ function candidateRow(p, prefs) {
           ${r.excludedHits.length ? `<span class="pill pill-rose">excluded</span>` : ''}
         </div>
         <div class="bar mt-1.5"><i style="width:${(r.pct*100).toFixed(0)}%"></i></div>
-        <div class="text-[11px] text-slate-500 mt-1 truncate">${r.dimensions.filter(d => d.score != null).slice(0,4).map(d => `${d.label}:${(d.score*100|0)}%`).join(' · ')}</div>
+        <div class="text-[11px] text-themed-mute mt-1 truncate">${r.dimensions.filter(d => d.score != null).slice(0,4).map(d => `${d.label}:${(d.score*100|0)}%`).join(' · ')}</div>
       </div>
     </a>
   `;
@@ -74,7 +74,7 @@ function genderSelector(current) {
     <div class="card p-3 grid gap-2">
       <div class="flex items-center justify-between">
         <h2 class="font-display font-semibold">Looking for</h2>
-        <span class="text-[11px] text-slate-500">Drives which option set you see below</span>
+        <span class="text-[11px] text-themed-mute">Drives which option set you see below</span>
       </div>
       <div class="flex flex-wrap gap-1.5" id="gender-row">
         ${GENDERS.map(g => {

@@ -202,7 +202,7 @@ function floorView(me, visible) {
           <div class="you" title="You"></div>
           ${dots}
         </div>
-        <div class="text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
+        <div class="text-[11px] text-themed-mute flex items-center gap-3 flex-wrap">
           <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#fff;"></span> You</span>
           <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#ffd073;"></span> Ideal</span>
           <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#78f3d3;"></span> Strong</span>
@@ -212,7 +212,7 @@ function floorView(me, visible) {
       </div>
       <aside class="lg:col-span-2 grid gap-3">
         <h2 class="font-display font-semibold text-lg">Top of shortlist</h2>
-        ${top.length ? top.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-slate-500">Nobody fits the active filters yet.</div>'}
+        ${top.length ? top.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-themed-mute">Nobody fits the active filters yet.</div>'}
       </aside>
     </div>`;
 }
@@ -221,11 +221,11 @@ function shortlistView(me, visible) {
   const sorted = [...visible].sort((a,b) => b.score - a.score);
   return `
     <div class="grid gap-3">
-      <div class="flex items-center justify-between text-xs text-slate-500">
+      <div class="flex items-center justify-between text-xs text-themed-mute">
         <span>${sorted.length} visible · sorted by combined score</span>
         <span>match% × 0.55 · prox × 0.20 · hobby × 0.15 · rapport × 0.10</span>
       </div>
-      ${sorted.length ? sorted.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-slate-500">Empty room. Adjust filters or privacy.</div>'}
+      ${sorted.length ? sorted.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-themed-mute">Empty room. Adjust filters or privacy.</div>'}
     </div>`;
 }
 
@@ -247,9 +247,9 @@ function proximityView(me, visible) {
                 <h3 class="font-display font-semibold">${escapeHtml(z.label)}</h3>
                 <span class="pill" style="color:${z.color};border-color:${z.color}55">${items.length}</span>
               </div>
-              <span class="text-[11px] text-slate-500">${escapeHtml(z.copy)}</span>
+              <span class="text-[11px] text-themed-mute">${escapeHtml(z.copy)}</span>
             </div>
-            ${items.length ? items.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-xs text-slate-500">No one in this zone right now.</div>'}
+            ${items.length ? items.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-xs text-themed-mute">No one in this zone right now.</div>'}
           </div>`;
       }).join('')}
     </div>`;

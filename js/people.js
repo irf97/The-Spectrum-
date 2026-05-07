@@ -62,7 +62,7 @@ export function render(root, params) {
 
   root.innerHTML = `
     <section class="grid gap-6">
-      <a href="#/floor" class="text-xs text-slate-400 hover:text-iris-400">← Back to floor</a>
+      <a href="#/floor" class="text-xs text-themed-soft">← Back to floor</a>
 
       <div class="card p-5 grid sm:grid-cols-[auto_1fr_auto] items-center gap-4">
         <span class="avatar w-20 h-20 text-xl" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">
@@ -95,7 +95,7 @@ export function render(root, params) {
           <div class="grid gap-1.5">
             <div class="flex items-center justify-between text-sm">
               <span class="rep-tier ${pr.tier.toneClass}"><span class="swatch"></span>${escapeHtml(pr.tier.label)}</span>
-              <span class="text-slate-500">${Math.round(rapport.points)} pts ${pr.next?` · ${Math.round(pr.into)}/${Math.round(pr.span)} → ${pr.next.label}`:''}</span>
+              <span class="text-themed-mute">${Math.round(rapport.points)} pts ${pr.next?` · ${Math.round(pr.into)}/${Math.round(pr.span)} → ${pr.next.label}`:''}</span>
             </div>
             <div class="bar rep tall"><i style="width:${(pr.progress*100).toFixed(0)}%;background:${pr.tier.color}"></i></div>
           </div>
@@ -105,7 +105,7 @@ export function render(root, params) {
           <div class="card-soft p-3 grid gap-2">
             <div class="flex items-center justify-between text-sm">
               <span>Shared sessions</span>
-              <span class="text-slate-400">${rapport.sharedSessions}</span>
+              <span class="text-themed-soft">${rapport.sharedSessions}</span>
             </div>
             <div class="flex gap-2 items-center">
               <select id="shared-hobby" class="select w-auto text-sm">
@@ -116,12 +116,12 @@ export function render(root, params) {
             </div>
           </div>
           <div class="grid gap-1">
-            <h3 class="text-xs text-slate-400">Recent rapport notes</h3>
+            <h3 class="text-xs text-themed-soft">Recent rapport notes</h3>
             ${(rapport.manualNotes||[]).slice(-6).reverse().map(n => `
               <div class="card-soft p-2 text-xs flex items-center justify-between">
                 <span>${escapeHtml(n.note)}</span>
-                <span class="${n.delta>0?'text-mint-400':'text-rose-400'}">${n.delta>0?'+':''}${Math.round(n.delta)} · ${fmtRel(n.ts)}</span>
-              </div>`).join('') || '<div class="text-xs text-slate-500">No notes yet — proximity time will quietly accrue (subject to their privacy).</div>'}
+                <span style="color:var(${n.delta>0?'--mint':'--rose'})">${n.delta>0?'+':''}${Math.round(n.delta)} · ${fmtRel(n.ts)}</span>
+              </div>`).join('') || '<div class="text-xs text-themed-mute">No notes yet — proximity time will quietly accrue (subject to their privacy).</div>'}
           </div>
         </div>
 
@@ -144,11 +144,11 @@ export function render(root, params) {
                     <span class="pill" style="color:${rk.color};border-color:${rk.color}55">${escapeHtml(rk.label)} · L${h.skill}</span>
                   </div>
                   <div class="bar skill"><i style="width:${h.skill}%"></i></div>
-                  <div class="text-[11px] text-slate-500">role: ${escapeHtml(h.role)} · ${sharedNote}</div>
+                  <div class="text-[11px] text-themed-mute">role: ${escapeHtml(h.role)} · ${sharedNote}</div>
                 </div>
               `;
-            }).join('') || '<div class="text-sm text-slate-500">No hobbies on file.</div>'}
-          </div>` : `<p class="text-xs text-slate-500">Hidden by privacy (showHobbies: ${escapeHtml(tierMeta(effectiveTier(p,'showHobbies')).label)}).</p>`}
+            }).join('') || '<div class="text-sm text-themed-mute">No hobbies on file.</div>'}
+          </div>` : `<p class="text-xs text-themed-mute">Hidden by privacy (showHobbies: ${escapeHtml(tierMeta(effectiveTier(p,'showHobbies')).label)}).</p>`}
         </div>
 
         ${datingShared ? `
@@ -190,10 +190,10 @@ export function render(root, params) {
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Proximity</h2>
           <div class="grid gap-1.5 text-sm">
-            <div class="flex justify-between"><span>Distance</span><span class="text-slate-400">~${(w.dist||0).toFixed(1)}m</span></div>
-            <div class="flex justify-between"><span>Signal</span><span class="text-slate-400">${((w.signal||0)*100|0)}%</span></div>
-            <div class="flex justify-between"><span>Stability</span><span class="text-slate-400">${w.stable?'stable':'flickering'}</span></div>
-            <div class="flex justify-between"><span>Opt-in</span><span class="text-slate-400">${w.optIn?'yes':'no'}</span></div>
+            <div class="flex justify-between"><span>Distance</span><span class="text-themed-soft">~${(w.dist||0).toFixed(1)}m</span></div>
+            <div class="flex justify-between"><span>Signal</span><span class="text-themed-soft">${((w.signal||0)*100|0)}%</span></div>
+            <div class="flex justify-between"><span>Stability</span><span class="text-themed-soft">${w.stable?'stable':'flickering'}</span></div>
+            <div class="flex justify-between"><span>Opt-in</span><span class="text-themed-soft">${w.optIn?'yes':'no'}</span></div>
             <div class="flex justify-between"><span>Zone</span><span style="color:${cls.zone.color}">${escapeHtml(cls.zone.label)}</span></div>
           </div>
         </div>
@@ -201,15 +201,15 @@ export function render(root, params) {
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Identity & privacy</h2>
           <div class="grid gap-1.5 text-sm">
-            <div class="flex justify-between"><span>Their default mode</span><span class="text-slate-400">${escapeHtml(p.visMode)}</span></div>
-            <div class="flex justify-between"><span>Your reveal flag</span><span class="text-slate-400">${revealed?'on':'off'}</span></div>
-            <div class="flex justify-between"><span>Your match gate</span><span class="text-slate-400">${(me.visMatchGate*100).toFixed(0)}%</span></div>
-            <div class="flex justify-between"><span>What you currently see</span><span class="text-slate-300 font-medium">${escapeHtml(view.shows)}</span></div>
-            <div class="flex justify-between"><span>Their showName tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'showName')).label)}</span></div>
-            <div class="flex justify-between"><span>Their showPhoto tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'showPhoto')).label)}</span></div>
-            <div class="flex justify-between"><span>Their messages tier</span><span class="text-slate-400">${escapeHtml(tierMeta(effectiveTier(p,'receiveMessages')).label)}</span></div>
+            <div class="flex justify-between"><span>Their default mode</span><span class="text-themed-soft">${escapeHtml(p.visMode)}</span></div>
+            <div class="flex justify-between"><span>Your reveal flag</span><span class="text-themed-soft">${revealed?'on':'off'}</span></div>
+            <div class="flex justify-between"><span>Your match gate</span><span class="text-themed-soft">${(me.visMatchGate*100).toFixed(0)}%</span></div>
+            <div class="flex justify-between"><span>What you currently see</span><span class="text-themed-soft font-medium">${escapeHtml(view.shows)}</span></div>
+            <div class="flex justify-between"><span>Their showName tier</span><span class="text-themed-soft">${escapeHtml(tierMeta(effectiveTier(p,'showName')).label)}</span></div>
+            <div class="flex justify-between"><span>Their showPhoto tier</span><span class="text-themed-soft">${escapeHtml(tierMeta(effectiveTier(p,'showPhoto')).label)}</span></div>
+            <div class="flex justify-between"><span>Their messages tier</span><span class="text-themed-soft">${escapeHtml(tierMeta(effectiveTier(p,'receiveMessages')).label)}</span></div>
           </div>
-          <p class="text-[11px] text-slate-500">${view.reasons.join(' · ') || '—'}</p>
+          <p class="text-[11px] text-themed-mute">${view.reasons.join(' · ') || '—'}</p>
         </div>
       </div>
     </section>

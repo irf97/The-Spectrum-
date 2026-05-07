@@ -7,11 +7,12 @@ import { $, $$, html, raw, escapeHtml } from './util.js';
 function statusCard(status, currentKey, mode) {
   const sel = status.key === currentKey;
   return `
-    <button class="card-soft text-left p-3 flex flex-col gap-1.5 hover:border-iris-500/60 transition ${sel ? 'ring-2 ring-iris-500' : ''}"
-            data-mode="${mode}" data-status="${status.key}">
+    <button class="card-soft text-left p-3 flex flex-col gap-1.5 hover:border-iris-500/60 transition"
+            data-mode="${mode}" data-status="${status.key}"
+            style="${sel?'box-shadow:0 0 0 2px var(--iris)':''}">
       <span class="text-xl leading-none">${status.icon}</span>
       <span class="font-display font-semibold">${escapeHtml(status.label)}</span>
-      <span class="text-xs text-slate-400">${escapeHtml(status.desc)}</span>
+      <span class="text-xs text-themed-soft">${escapeHtml(status.desc)}</span>
     </button>`;
 }
 
@@ -63,7 +64,7 @@ export function render(root) {
 
       <div class="card p-4 sm:p-5">
         <h3 class="font-display font-semibold text-lg mb-3">How status changes everything</h3>
-        <ul class="grid sm:grid-cols-2 gap-2 text-sm text-slate-300">
+        <ul class="grid sm:grid-cols-2 gap-2 text-sm text-themed-soft">
           <li class="card-soft p-3"><b>Open</b> · You appear to all eligible matches in compatible zones.</li>
           <li class="card-soft p-3"><b>Selective / Focused</b> · Only Strong+ matches surface; reveal gate raised.</li>
           <li class="card-soft p-3"><b>Engaged</b> · Pings are softened; people see "in conversation" hints.</li>
