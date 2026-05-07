@@ -25,11 +25,13 @@ export function render(root, params) {
   const muted = !!store.muted[p.id];
   const revealed = !!store.reveals[p.id];
 
-  const datingShared     = !!me.modes?.dating     && !!p.modes?.dating;
-  const networkingShared = !!me.modes?.networking && !!p.modes?.networking;
+  const datingPersona     = store.activePersonaFor('dating');
+  const networkingPersona = store.activePersonaFor('networking');
+  const datingShared     = !!me.dating?.enabled     && !!p.modes?.dating     && !!datingPersona;
+  const networkingShared = !!me.networking?.enabled && !!p.modes?.networking && !!networkingPersona;
   const unknownBucket = MATCH_BUCKETS.find(b => b.key === 'unknown');
-  const sc  = datingShared     ? scoreCandidate(p, me.dating.prefs)        : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
-  const al  = networkingShared ? alignmentCandidate(p, me.networking.prefs) : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
+  const sc  = datingShared     ? scoreCandidate(p, datingPersona.prefs)         : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
+  const al  = networkingShared ? alignmentCandidate(p, networkingPersona.prefs) : { pct: 0, bucket: unknownBucket, dimensions: [], blockedBy: [], excludedHits: [] };
   const primaryPct = Math.max(datingShared ? sc.pct : 0, networkingShared ? al.pct : 0);
   const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted });
   const ctx = {

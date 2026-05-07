@@ -19,7 +19,12 @@ function tierOptionsFor(axis, current) {
   ).join('');
 }
 
-function axisRow(me, group, label) {
+function personaOverrideOptions(current) {
+  return `<option value="">— inherit —</option>` +
+    AUDIENCE_TIERS.map(t => `<option value="${t.key}" ${current===t.key?'selected':''}>${t.short}  ${t.label}</option>`).join('');
+}
+
+function axisRow(me, group, label, persona, modeKey) {
   const axes = PRIVACY_AXES.filter(a => a.group === group);
   if (!axes.length) return '';
   return `
@@ -28,20 +33,27 @@ function axisRow(me, group, label) {
       <div class="grid gap-2">
         ${axes.map(a => {
           const tier = effectiveTier(me, a.key);
+          const baseTier = me.privacy?.matrix?.[a.key] || a.defaultTier;
           const temp = me.privacy?.temp?.[a.key];
+          const ovr  = persona?.privacyOverrides?.[a.key];
           const tm = tierMeta(tier);
           return `
-            <div class="card-soft p-3 grid sm:grid-cols-[1.4fr_1fr_auto] items-center gap-3" data-axis="${a.key}">
+            <div class="card-soft p-3 grid lg:grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-3" data-axis="${a.key}">
               <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-sm">${escapeHtml(a.label)}</span>
                   ${temp ? `<span class="pill pill-sun" title="Temporary override">⏱ expires ${fmtRel(temp.expiresAt)}</span>` : ''}
+                  ${ovr ? `<span class="pill pill-iris" title="Active persona override">${escapeHtml(persona.name)}: ${escapeHtml(tierMeta(ovr).label)}</span>` : ''}
                 </div>
                 <div class="text-[11px] text-themed-mute">${escapeHtml(a.copy)}</div>
               </div>
               <div>
-                <select class="select" data-tier="${a.key}">${tierOptionsFor(a.key, tier)}</select>
-                <div class="text-[11px] mt-1" style="color:${tm.swatch}">Currently: ${escapeHtml(tm.label)}</div>
+                <select class="select" data-tier="${a.key}">${tierOptionsFor(a.key, baseTier)}</select>
+                <div class="text-[11px] mt-1 text-themed-mute">Base</div>
+              </div>
+              <div>
+                <select class="select" data-persona-override="${a.key}" ${persona?'':'disabled'}>${personaOverrideOptions(ovr)}</select>
+                <div class="text-[11px] mt-1" style="color:${tm.swatch}">Effective: ${escapeHtml(tm.label)}</div>
               </div>
               <div class="flex flex-wrap gap-1 justify-end">
                 ${TEMP_DURATIONS.map(d => `<button class="btn btn-sm" data-temp="${a.key}" data-ms="${d.ms}" title="Temporarily set Anyone for ${d.label}">+${d.label}</button>`).join('')}
@@ -60,7 +72,8 @@ function previewPanel(me, world, muted, reveals) {
   for (const p of SAMPLE_PEOPLE) {
     const w = world[p.id] || {};
     const cls = classify({ dist:w.dist, optIn:w.optIn, stable:w.stable, signal:w.signal, muted:!!muted[p.id] });
-    const sc = me.modes?.dating ? scoreCandidate(p, me.dating.prefs) : { pct: 0 };
+    const dPersona = store.activePersonaFor('dating');
+    const sc = me.dating?.enabled && dPersona ? scoreCandidate(p, dPersona.prefs) : { pct: 0 };
     const ctx = {
       muted: !!muted[p.id],
       zoneKey: cls.zone.key,
@@ -121,27 +134,29 @@ export function render(root) {
       return;
     }
     const me = store.profile;
+    const mode = store.mode;
+    const persona = store.activePersona();
     root.innerHTML = `
       <section class="grid gap-6">
         <header class="flex items-end justify-between gap-3 flex-wrap">
           <div>
-            <p class="h-eyebrow">Profile · Privacy</p>
+            <p class="h-eyebrow">Profile · Privacy · ${mode} · ${escapeHtml(persona?.name || '')}</p>
             <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Privacy matrix</h1>
-            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Per-action audience tiers. Each row sets who can see / do this with you. Temporary overrides expire on a timer; presets reset all rows at once.</p>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Each axis has a base tier (applies always) and a persona override (applies when the named persona is active). Overrides take precedence over base, temporary overrides take precedence over both.</p>
           </div>
           <div class="flex gap-2">
             <a href="#/profile" class="btn">Back to profile</a>
-            <button class="btn btn-rose" id="reset-matrix">Reset to defaults</button>
+            <button class="btn btn-rose" id="reset-matrix">Reset base matrix</button>
           </div>
         </header>
 
         ${presetRow()}
 
-        <div class="grid lg:grid-cols-2 gap-4">
-          ${axisRow(me, 'visibility', 'Visibility')}
-          ${axisRow(me, 'inbound',    'Inbound contact')}
-          ${axisRow(me, 'rapport',    'Rapport')}
-          ${axisRow(me, 'leaderboard','Leaderboards')}
+        <div class="grid gap-4">
+          ${axisRow(me, 'visibility', 'Visibility', persona, mode)}
+          ${axisRow(me, 'inbound',    'Inbound contact', persona, mode)}
+          ${axisRow(me, 'rapport',    'Rapport', persona, mode)}
+          ${axisRow(me, 'leaderboard','Leaderboards', persona, mode)}
         </div>
 
         ${previewPanel(me, store.world, store.muted, store.reveals)}
@@ -162,10 +177,18 @@ export function render(root) {
       </section>
     `;
 
-    // Tier dropdowns.
+    // Base tier dropdowns.
     $$('select[data-tier]', root).forEach(sel => {
       sel.addEventListener('change', e => {
         store.setPrivacyAxis(sel.dataset.tier, e.target.value);
+        paint();
+      });
+    });
+    // Persona override dropdowns.
+    $$('select[data-persona-override]', root).forEach(sel => {
+      sel.addEventListener('change', e => {
+        if (!persona) return;
+        store.setPersonaPrivacyOverride(mode, persona.id, sel.dataset.personaOverride, e.target.value || null);
         paint();
       });
     });

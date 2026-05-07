@@ -13,7 +13,7 @@ export function resolveView(viewer, subject, matchPct, opts = {}) {
   const reasons = [];
   const muted = !!opts.muted;
   const reveals = opts.reveals || {};
-  const subjMode = subject.visMode || 'avatar';
+  const subjMode = subject.visMode || activePersonaVisMode(subject) || 'avatar';
   const gate = clamp(viewer.visMatchGate ?? 0, 0, 1);
 
   if (muted) return finalise('hidden', { mutual:false, gated:false, reasons:['muted'], modeKey:subjMode });
@@ -56,6 +56,14 @@ export function resolveView(viewer, subject, matchPct, opts = {}) {
   }
 
   return finalise(shows, { mutual: shows === 'reveal', gated: matchPct < gate, reasons, modeKey: subjMode });
+}
+
+function activePersonaVisMode(person) {
+  if (!person?.mode) return null;
+  const block = person[person.mode];
+  if (!block?.personas) return null;
+  const persona = block.personas.find(x => x.id === block.activePersonaId);
+  return persona?.visMode || null;
 }
 
 function finalise(shows, meta) { return { shows, ...meta }; }

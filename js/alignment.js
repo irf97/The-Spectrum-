@@ -86,8 +86,9 @@ function modeOffNotice() {
 
 export function render(root) {
   const me = store.profile;
-  if (!me.modes?.networking) { root.innerHTML = modeOffNotice(); return; }
-  const prefs = me.networking.prefs;
+  if (!me.networking?.enabled) { root.innerHTML = modeOffNotice(); return; }
+  const persona = store.activePersonaFor('networking');
+  const prefs = persona.prefs;
   const candidates = SAMPLE_PEOPLE
     .filter(p => p.modes?.networking)
     .map(p => ({ p, r: alignmentCandidate(p, prefs) }))
@@ -121,18 +122,18 @@ export function render(root) {
   $$('div[data-field]', root).forEach(box => {
     const field = box.dataset.field;
     box.querySelector('input[data-role="weight"]').addEventListener('input', (e) => {
-      const next = setWeight(store.profile.networking.prefs, field, Number(e.target.value));
-      store.setProfile({ networking: { ...store.profile.networking, prefs: next } });
+      const next = setWeight(store.activePersonaFor('networking').prefs, field, Number(e.target.value));
+      store.updatePersona('networking', store.activePersonaFor('networking').id, { prefs: next });
       render(root);
     });
     box.querySelectorAll('button[data-role="opt"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const v = btn.dataset.opt;
-        let next = store.profile.networking.prefs;
+        let next = store.activePersonaFor('networking').prefs;
         if (e.altKey) next = toggleExcluded(next, field, v);
         else if (e.shiftKey) next = toggleFilter(next, field, v);
         else next = setTarget(next, field, next.targets?.[field] === v ? '' : v);
-        store.setProfile({ networking: { ...store.profile.networking, prefs: next } });
+        store.updatePersona('networking', store.activePersonaFor('networking').id, { prefs: next });
         render(root);
       });
     });

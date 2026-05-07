@@ -87,7 +87,7 @@ function genderSelector(current) {
 
 export function render(root) {
   const me = store.profile;
-  if (!me.modes?.dating) {
+  if (!me.dating?.enabled) {
     root.innerHTML = `
       <section class="grid gap-4">
         <header>
@@ -101,7 +101,8 @@ export function render(root) {
       </section>`;
     return;
   }
-  const prefs = me.dating.prefs;
+  const persona = store.activePersonaFor('dating');
+  const prefs = persona.prefs;
   const fields = fieldsFor(prefs.gender || 'any');
   const candidates = SAMPLE_PEOPLE
     .filter(p => p.modes?.dating)
@@ -136,26 +137,26 @@ export function render(root) {
   `;
 
   $$('button[data-pref-gender]', root).forEach(b => b.addEventListener('click', () => {
-    const next = setGender(store.profile.dating.prefs, b.dataset.prefGender);
-    store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
+    const next = setGender(store.activePersonaFor('dating').prefs, b.dataset.prefGender);
+    store.updatePersona('dating', store.activePersonaFor('dating').id, { prefs: next });
     render(root);
   }));
 
   $$('div[data-field]', root).forEach(box => {
     const field = box.dataset.field;
     box.querySelector('input[data-role="weight"]').addEventListener('input', (e) => {
-      const next = setWeight(store.profile.dating.prefs, field, Number(e.target.value));
-      store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
+      const next = setWeight(store.activePersonaFor('dating').prefs, field, Number(e.target.value));
+      store.updatePersona('dating', store.activePersonaFor('dating').id, { prefs: next });
       render(root);
     });
     box.querySelectorAll('button[data-role="opt"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const v = btn.dataset.opt;
-        let next = store.profile.dating.prefs;
+        let next = store.activePersonaFor('dating').prefs;
         if (e.altKey) next = toggleExcluded(next, field, v);
         else if (e.shiftKey) next = toggleFilter(next, field, v);
         else next = setTarget(next, field, next.targets?.[field] === v ? '' : v);
-        store.setProfile({ dating: { ...store.profile.dating, prefs: next } });
+        store.updatePersona('dating', store.activePersonaFor('dating').id, { prefs: next });
         render(root);
       });
     });

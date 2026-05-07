@@ -47,6 +47,40 @@ export const NETWORKING_FIELDS = [
     options: ['Intros','Capital','Hires','Peers','Mentors','Students','Deals'] },
 ];
 
+// ---------- Personas ---------------------------------------------------------
+// Each mode (dating, networking) carries an array of personas — alter egos for
+// different settings, moods, days. One is active at a time per mode.
+
+export const PERSONA_AVATAR_EMOJI = [
+  '🌙','☀️','🌴','🔥','✨','💼','🎒','🎭','🪩','🪐','🦊','🐝','🌊','🍃','🥂','🎯','🛠','📚','🎨','🎧'
+];
+
+// Presets seed a new persona. `dating` and `networking` blocks override the
+// status / visMode / privacy axes; self & prefs stay user-defined.
+export const PERSONA_PRESETS = [
+  { key:'custom',  label:'Custom',  icon:'🎛',  copy:'Start from your default and tune it yourself.',
+    dating:{}, networking:{} },
+  { key:'work',    label:'Work',    icon:'💼',
+    copy:'Heads-down. Strict privacy, no social signals.',
+    dating:    { status:'closed',     visMode:'hidden', overrides:{ showOnFloor:'nobody', showName:'nobody', showPhoto:'nobody', receiveMessages:'nobody', receiveRevealRequests:'nobody' } },
+    networking:{ status:'focused',    visMode:'photo',  overrides:{ showOnFloor:'same_room', showName:'reveal_mutual', receiveMessages:'reveal_mutual' } } },
+  { key:'weekend', label:'Weekend', icon:'🪩',
+    copy:'Off-duty. Open, relaxed, social.',
+    dating:    { status:'flirty',     visMode:'hybrid', overrides:{ showOnFloor:'anyone', showName:'reveal_mutual', showPhoto:'match_gated', receiveMessages:'match_gated' } },
+    networking:{ status:'curious',    visMode:'avatar', overrides:{ showOnFloor:'same_room', showName:'reveal_mutual' } } },
+  { key:'travel',  label:'Travel',  icon:'🎒',
+    copy:'Just landed. Lookaround vibes; brief encounters.',
+    dating:    { status:'open',       visMode:'glance', overrides:{ showOnFloor:'same_room', showPhoto:'match_gated' } },
+    networking:{ status:'circulating',visMode:'glance', overrides:{ showOnFloor:'same_room', showName:'match_gated' } } },
+  { key:'event',   label:'Event',   icon:'🎯',
+    copy:'A specific room. Discoverable, focused.',
+    dating:    { status:'selective',  visMode:'photo',  overrides:{ showOnFloor:'same_room', showPhoto:'reveal_mutual' } },
+    networking:{ status:'open',       visMode:'photo',  overrides:{ showOnFloor:'anyone', showName:'same_room', receiveRevealRequests:'anyone' } } },
+];
+
+// Default avatar palette (for color avatars).
+export const PERSONA_AVATAR_PALETTE = ['#69ff94','#7b6cff','#ffcc00','#ff7070','#3fbe7c','#155799','#ff8a3c','#b48ead'];
+
 // ---------- Themes -----------------------------------------------------------
 // Aligned with GitHub Pages' supported Jekyll themes. The `theme:` directive
 // in _config.yml styles README rendering; these match the app to those
@@ -345,16 +379,14 @@ export const SAMPLE_PEOPLE = PEOPLE_SEED.map(p => {
   return { ...p, modes: ov.modes, networking: ov.networking };
 });
 
-export const DEFAULT_PROFILE = () => ({
-  id: 'me',
-  name: 'You',
-  alias: 'you',
-  modes: { dating: true, networking: true },
-  status: { dating: 'open', networking: 'open' },
-  visMode: 'hybrid',
-  visMatchGate: 0.5,
-  optIn: true,
-  dating: {
+function defaultDatingPersona() {
+  return {
+    id: 'default',
+    name: 'Default',
+    avatar: { kind: 'emoji', value: '✨' },
+    preset: 'custom',
+    status: 'open',
+    visMode: 'hybrid',
     self: {
       gender: 'Non-binary', age: '25–29', height: '170–180', body: 'Athletic', face: 'Symmetric',
       hair: 'Short', style: 'Smart-casual', grooming: 'Clean',
@@ -372,9 +404,19 @@ export const DEFAULT_PROFILE = () => ({
         smoking: 'No', drinking: 'Socially', education: ''
       },
       excluded: {}
-    }
-  },
-  networking: {
+    },
+    privacyOverrides: {}
+  };
+}
+
+function defaultNetworkingPersona() {
+  return {
+    id: 'default',
+    name: 'Default',
+    avatar: { kind: 'emoji', value: '🎯' },
+    preset: 'custom',
+    status: 'open',
+    visMode: 'hybrid',
     self: {
       ambition: '2 years', stage: 'Building', role: 'Operator',
       thinking: 'First-principles', expertise: 'Practitioner', execution: 'Iterative',
@@ -389,7 +431,30 @@ export const DEFAULT_PROFILE = () => ({
         domain: 'Infra', lookingFor: 'Peers'
       },
       excluded: {}
-    }
+    },
+    privacyOverrides: {}
+  };
+}
+
+export const DEFAULT_DATING_PERSONA     = defaultDatingPersona;
+export const DEFAULT_NETWORKING_PERSONA = defaultNetworkingPersona;
+
+export const DEFAULT_PROFILE = () => ({
+  id: 'me',
+  name: 'You',
+  alias: 'you',
+  mode: 'dating',
+  visMatchGate: 0.5,
+  optIn: true,
+  dating: {
+    enabled: true,
+    activePersonaId: 'default',
+    personas: [defaultDatingPersona()]
+  },
+  networking: {
+    enabled: true,
+    activePersonaId: 'default',
+    personas: [defaultNetworkingPersona()]
   },
   hobbies: [
     { key:'climbing', skill: 35, role:'student' },

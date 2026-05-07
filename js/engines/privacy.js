@@ -4,11 +4,20 @@
 
 import { PRIVACY_AXES, AUDIENCE_TIERS, defaultMatrix } from '../data.js';
 
+function activePersonaOverride(person, axis) {
+  if (!person?.mode || !person[person.mode]) return null;
+  const block = person[person.mode];
+  const persona = block.personas?.find(x => x.id === block.activePersonaId);
+  return persona?.privacyOverrides?.[axis] || null;
+}
+
 export function effectiveTier(person, axis) {
   if (!person) return defaultFor(axis);
   const now = Date.now();
   const t = person.privacy?.temp?.[axis];
   if (t && t.expiresAt > now && t.tier) return t.tier;
+  const ovr = activePersonaOverride(person, axis);
+  if (ovr) return ovr;
   const m = person.privacy?.matrix?.[axis];
   if (m) return m;
   return defaultFor(axis);

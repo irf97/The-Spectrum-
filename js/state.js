@@ -1,13 +1,16 @@
 // Local-first store with LocalStorage persistence and a 1-second simulation tick.
 // State is intentionally thin — engines do all logic.
 
-import { DEFAULT_PROFILE, SAMPLE_PEOPLE, defaultMatrix, PRIVACY_AXES } from './data.js';
+import {
+  DEFAULT_PROFILE, SAMPLE_PEOPLE, defaultMatrix, PRIVACY_AXES,
+  DEFAULT_DATING_PERSONA, DEFAULT_NETWORKING_PERSONA, PERSONA_PRESETS
+} from './data.js';
 import { classify } from './engines/proximity.js';
 import { accrualPerTick } from './engines/rapport.js';
 import { sharedKeys } from './engines/hobbies.js';
 import { canSee } from './engines/privacy.js';
 import { scoreCandidate } from './engines/match.js';
-import { bus, clamp } from './util.js';
+import { bus, clamp, uid } from './util.js';
 
 const KEY = 'spectrum:v3';
 
@@ -22,6 +25,27 @@ const blank = () => ({
   meta: { ticks: 0, lastTick: Date.now() }
 });
 
+function ensurePersonaShape(p, fallback) {
+  return {
+    id: p.id || fallback.id,
+    name: p.name || fallback.name,
+    avatar: p.avatar || fallback.avatar,
+    preset: p.preset || fallback.preset || 'custom',
+    status: p.status || fallback.status,
+    visMode: p.visMode || fallback.visMode,
+    self: { ...fallback.self, ...(p.self || {}) },
+    prefs: {
+      ...fallback.prefs,
+      ...(p.prefs || {}),
+      filters: { ...(fallback.prefs.filters || {}), ...((p.prefs && p.prefs.filters) || {}) },
+      weights: { ...(fallback.prefs.weights || {}), ...((p.prefs && p.prefs.weights) || {}) },
+      targets: { ...(fallback.prefs.targets || {}), ...((p.prefs && p.prefs.targets) || {}) },
+      excluded:{ ...(fallback.prefs.excluded || {}), ...((p.prefs && p.prefs.excluded) || {}) }
+    },
+    privacyOverrides: { ...(p.privacyOverrides || {}) }
+  };
+}
+
 function migrate(s) {
   if (!s || typeof s !== 'object') return blank();
   const base = blank();
@@ -30,22 +54,71 @@ function migrate(s) {
 
   // v3 → v4: split into me.dating + me.networking, replace `intent` with `modes`.
   if (p.self && !p.dating) {
-    p.dating = { self: p.self, prefs: p.prefs || base.profile.dating.prefs };
+    p.dating = { self: p.self, prefs: p.prefs || {} };
     delete p.self; delete p.prefs;
   }
-  p.dating = { ...base.profile.dating, ...(p.dating || {}) };
-  p.dating.self  = { ...base.profile.dating.self,  ...(p.dating.self  || {}) };
-  p.dating.prefs = { ...base.profile.dating.prefs, ...(p.dating.prefs || {}) };
 
-  p.networking = { ...base.profile.networking, ...(p.networking || {}) };
-  p.networking.self  = { ...base.profile.networking.self,  ...(p.networking.self  || {}) };
-  p.networking.prefs = { ...base.profile.networking.prefs, ...(p.networking.prefs || {}) };
+  // v4 → v5: wrap each mode's {self, prefs} into personas[]; drop me.modes/me.status.
+  const fallbackD = DEFAULT_DATING_PERSONA();
+  const fallbackN = DEFAULT_NETWORKING_PERSONA();
 
-  if (!p.modes) {
-    if (p.intent === 'dating')          p.modes = { dating: true,  networking: false };
-    else if (p.intent === 'networking') p.modes = { dating: false, networking: true  };
-    else                                 p.modes = { dating: true,  networking: true  };
+  // Legacy status (top-level me.status.{dating,networking}) seeds the default persona.
+  const legacyDatingStatus     = p.status?.dating;
+  const legacyNetworkingStatus = p.status?.networking;
+  // Legacy visMode applied to both default personas.
+  const legacyVisMode = p.visMode;
+
+  if (p.dating && !Array.isArray(p.dating.personas)) {
+    const seed = ensurePersonaShape({
+      id: 'default', name: 'Default',
+      avatar: fallbackD.avatar, preset: 'custom',
+      status: legacyDatingStatus || fallbackD.status,
+      visMode: legacyVisMode || fallbackD.visMode,
+      self: p.dating.self, prefs: p.dating.prefs,
+      privacyOverrides: {}
+    }, fallbackD);
+    const enabled = p.modes ? !!p.modes.dating : true;
+    p.dating = { enabled, activePersonaId: 'default', personas: [seed] };
+  } else if (p.dating) {
+    p.dating.personas = (p.dating.personas || [fallbackD]).map(x => ensurePersonaShape(x, fallbackD));
+    p.dating.enabled = p.dating.enabled !== false;
+    p.dating.activePersonaId = p.dating.activePersonaId || p.dating.personas[0]?.id || 'default';
+  } else {
+    p.dating = { enabled: true, activePersonaId: 'default', personas: [fallbackD] };
   }
+
+  if (p.networking && !Array.isArray(p.networking.personas)) {
+    const seed = ensurePersonaShape({
+      id: 'default', name: 'Default',
+      avatar: fallbackN.avatar, preset: 'custom',
+      status: legacyNetworkingStatus || fallbackN.status,
+      visMode: legacyVisMode || fallbackN.visMode,
+      self: p.networking.self, prefs: p.networking.prefs,
+      privacyOverrides: {}
+    }, fallbackN);
+    const enabled = p.modes ? !!p.modes.networking : true;
+    p.networking = { enabled, activePersonaId: 'default', personas: [seed] };
+  } else if (p.networking) {
+    p.networking.personas = (p.networking.personas || [fallbackN]).map(x => ensurePersonaShape(x, fallbackN));
+    p.networking.enabled = p.networking.enabled !== false;
+    p.networking.activePersonaId = p.networking.activePersonaId || p.networking.personas[0]?.id || 'default';
+  } else {
+    p.networking = { enabled: true, activePersonaId: 'default', personas: [fallbackN] };
+  }
+
+  if (!p.mode) {
+    if (p.modes?.dating && !p.modes?.networking)      p.mode = 'dating';
+    else if (p.modes?.networking && !p.modes?.dating) p.mode = 'networking';
+    else                                              p.mode = 'dating';
+  }
+  if (!p.dating.enabled && !p.networking.enabled) p.dating.enabled = true;
+  if (p.mode === 'dating'     && !p.dating.enabled)     p.mode = 'networking';
+  if (p.mode === 'networking' && !p.networking.enabled) p.mode = 'dating';
+
+  // Drop legacy top-level fields. visMode and status now live on each persona.
+  delete p.modes;
+  delete p.status;
+  delete p.visMode;
   delete p.intent;
 
   p.privacy = p.privacy || {};
@@ -76,6 +149,146 @@ class Store {
   get ui()      { return this.s.ui ||= {}; }
   get log()     { return this.s.log; }
   setProfile(patch) { this.s.profile = { ...this.s.profile, ...patch }; this.save(); }
+
+  // ---------- Mode + persona helpers --------------------------------------
+
+  get mode() { return this.s.profile.mode || 'dating'; }
+
+  setMode(m) {
+    if (m !== 'dating' && m !== 'networking') return;
+    const block = this.s.profile[m];
+    if (!block?.enabled) return;
+    this.s.profile.mode = m;
+    this.save();
+  }
+  toggleMode() {
+    const next = this.mode === 'dating' ? 'networking' : 'dating';
+    this.setMode(next);
+  }
+
+  setEnabled(modeKey, on) {
+    const block = this.s.profile[modeKey];
+    if (!block) return;
+    if (!on && !this.s.profile[modeKey === 'dating' ? 'networking' : 'dating'].enabled) return; // can't disable both
+    block.enabled = !!on;
+    if (!on && this.s.profile.mode === modeKey) {
+      this.s.profile.mode = modeKey === 'dating' ? 'networking' : 'dating';
+    }
+    this.save();
+  }
+
+  personasFor(modeKey) {
+    return this.s.profile[modeKey]?.personas || [];
+  }
+  activePersonaFor(modeKey) {
+    const block = this.s.profile[modeKey];
+    if (!block) return null;
+    return block.personas.find(p => p.id === block.activePersonaId) || block.personas[0] || null;
+  }
+  activePersona() { return this.activePersonaFor(this.mode); }
+
+  setActivePersona(modeKey, personaId) {
+    const block = this.s.profile[modeKey];
+    if (!block) return;
+    if (!block.personas.some(p => p.id === personaId)) return;
+    block.activePersonaId = personaId;
+    this.save();
+  }
+  cyclePersona(direction = 1) {
+    const block = this.s.profile[this.mode];
+    if (!block || block.personas.length <= 1) return;
+    const i = Math.max(0, block.personas.findIndex(p => p.id === block.activePersonaId));
+    const next = block.personas[(i + direction + block.personas.length) % block.personas.length];
+    this.setActivePersona(this.mode, next.id);
+  }
+
+  addPersona(modeKey, name, presetKey = 'custom') {
+    const block = this.s.profile[modeKey];
+    if (!block) return null;
+    const seed = modeKey === 'dating' ? DEFAULT_DATING_PERSONA() : DEFAULT_NETWORKING_PERSONA();
+    seed.id = uid();
+    seed.name = name || 'New persona';
+    seed.preset = presetKey;
+    const preset = PERSONA_PRESETS.find(p => p.key === presetKey);
+    if (preset) {
+      const overlay = preset[modeKey] || {};
+      if (overlay.status)   seed.status = overlay.status;
+      if (overlay.visMode)  seed.visMode = overlay.visMode;
+      if (overlay.overrides) seed.privacyOverrides = { ...overlay.overrides };
+    }
+    block.personas.push(seed);
+    block.activePersonaId = seed.id;
+    this.save();
+    return seed;
+  }
+
+  duplicatePersona(modeKey, personaId) {
+    const block = this.s.profile[modeKey];
+    if (!block) return null;
+    const src = block.personas.find(p => p.id === personaId);
+    if (!src) return null;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = uid();
+    copy.name = `${src.name} copy`;
+    block.personas.push(copy);
+    block.activePersonaId = copy.id;
+    this.save();
+    return copy;
+  }
+
+  updatePersona(modeKey, personaId, patch) {
+    const block = this.s.profile[modeKey];
+    if (!block) return;
+    const i = block.personas.findIndex(p => p.id === personaId);
+    if (i < 0) return;
+    const cur = block.personas[i];
+    block.personas[i] = {
+      ...cur,
+      ...patch,
+      avatar: patch.avatar || cur.avatar,
+      self: { ...cur.self, ...(patch.self || {}) },
+      prefs: { ...cur.prefs, ...(patch.prefs || {}) },
+      privacyOverrides: patch.privacyOverrides ? { ...patch.privacyOverrides } : cur.privacyOverrides
+    };
+    this.save();
+  }
+
+  deletePersona(modeKey, personaId) {
+    const block = this.s.profile[modeKey];
+    if (!block) return;
+    if (block.personas.length <= 1) return; // keep at least one
+    const i = block.personas.findIndex(p => p.id === personaId);
+    if (i < 0) return;
+    block.personas.splice(i, 1);
+    if (block.activePersonaId === personaId) {
+      block.activePersonaId = block.personas[0].id;
+    }
+    this.save();
+  }
+
+  applyPersonaPreset(modeKey, personaId, presetKey) {
+    const preset = PERSONA_PRESETS.find(p => p.key === presetKey);
+    if (!preset) return;
+    const block = this.s.profile[modeKey];
+    const persona = block?.personas.find(p => p.id === personaId);
+    if (!persona) return;
+    persona.preset = presetKey;
+    const overlay = preset[modeKey] || {};
+    if (overlay.status)    persona.status = overlay.status;
+    if (overlay.visMode)   persona.visMode = overlay.visMode;
+    if (overlay.overrides) persona.privacyOverrides = { ...overlay.overrides };
+    this.save();
+  }
+
+  setPersonaPrivacyOverride(modeKey, personaId, axis, tier) {
+    const block = this.s.profile[modeKey];
+    const persona = block?.personas.find(p => p.id === personaId);
+    if (!persona) return;
+    persona.privacyOverrides = { ...(persona.privacyOverrides || {}) };
+    if (tier === null || tier === undefined || tier === '') delete persona.privacyOverrides[axis];
+    else persona.privacyOverrides[axis] = tier;
+    this.save();
+  }
 
   // Cross-route UI state (active tab, last filter, last sort, etc.)
   setUI(key, patch) {
@@ -135,7 +348,7 @@ class Store {
           x: Math.cos(angle) * r, y: Math.sin(angle) * r,
           vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
           dist: r, stable: p.stable, optIn: p.optIn, signal: p.signal,
-          status: p.status, visMode: p.visMode, intent: p.intent
+          status: p.status, visMode: p.visMode
         };
       }
       if (!this.s.rapport[p.id]) {
@@ -165,6 +378,7 @@ class Store {
     const muted = this.s.muted;
     const reveals = this.s.reveals;
     const indexSeed = new Map(SAMPLE_PEOPLE.map(p => [p.id, p]));
+    const activeDating = this.activePersonaFor('dating');
 
     let dirty = this._expireTemps();
 
@@ -184,7 +398,7 @@ class Store {
         const seed = indexSeed.get(id);
         const cls = classify({ dist: p.dist, optIn: p.optIn, stable: p.stable, signal: p.signal });
         const shared = sharedKeys(me.hobbies, seed?.hobbies);
-        const sc = seed && me.modes?.dating ? scoreCandidate(seed, me.dating.prefs) : { pct: 0 };
+        const sc = seed && me.dating?.enabled && activeDating ? scoreCandidate(seed, activeDating.prefs) : { pct: 0 };
         const ctx = {
           muted: !!muted[id],
           zoneKey: cls.zone.key,

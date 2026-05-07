@@ -40,10 +40,10 @@ function channelRow(ch, identity) {
     </div>`;
 }
 
-function reveal(p, viewer, opts) {
-  const datingShared = !!viewer.modes?.dating && !!p.modes?.dating;
+function reveal(p, viewer, opts, viewerDatingPersona) {
+  const datingShared = !!viewer.dating?.enabled && !!p.modes?.dating && !!viewerDatingPersona;
   const unknown = MATCH_BUCKETS.find(b => b.key === 'unknown');
-  const r = datingShared ? scoreCandidate(p, viewer.dating.prefs) : { pct: 0, bucket: unknown };
+  const r = datingShared ? scoreCandidate(p, viewerDatingPersona.prefs) : { pct: 0, bucket: unknown };
   const view = resolveView(viewer, p, r.pct, opts);
   const visual = (() => {
     switch (view.shows) {
@@ -97,20 +97,23 @@ export function render(root) {
   const muted = store.muted;
   const opts = { reveals, theirReveal: true, muted: false };
   const identity = me.identity || {};
+  const activePersona = store.activePersona();
+  const personaVisMode = activePersona?.visMode || 'avatar';
+  const datingPersona = store.activePersonaFor('dating');
 
   root.innerHTML = `
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <p class="h-eyebrow">Layer 4</p>
+          <p class="h-eyebrow">Layer 4 · ${escapeHtml(activePersona?.name || 'persona')}</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Identity & Anonymity</h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Default visibility mode plus per-channel reveal tiers (photo / voice / video / handle / place), glance blur, default reveal duration, and a history of reveal events.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Visibility mode + per-channel reveal tiers. Visibility mode is per-persona; channels and glance settings apply globally.</p>
         </div>
-        <span class="pill pill-iris">${VIS_MODES.find(m=>m.key===me.visMode)?.label} · default</span>
+        <span class="pill pill-iris">${escapeHtml(VIS_MODES.find(m=>m.key===personaVisMode)?.label || personaVisMode)} · ${escapeHtml(activePersona?.name || '')}</span>
       </header>
 
       <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3" id="modes">
-        ${VIS_MODES.map(m => modeCard(m, me.visMode)).join('')}
+        ${VIS_MODES.map(m => modeCard(m, personaVisMode)).join('')}
       </div>
 
       <div class="grid lg:grid-cols-5 gap-6">
@@ -158,7 +161,7 @@ export function render(root) {
 
           <div class="card p-4 grid gap-3">
             <h2 class="font-display font-semibold text-lg">What others see (simulated)</h2>
-            ${SAMPLE_PEOPLE.slice(0,8).map(p => reveal(p, me, { ...opts, theirReveal: !!reveals[p.id], muted: !!muted[p.id] })).join('')}
+            ${SAMPLE_PEOPLE.slice(0,8).map(p => reveal(p, me, { ...opts, theirReveal: !!reveals[p.id], muted: !!muted[p.id] }, datingPersona)).join('')}
           </div>
 
           <div class="card p-4 grid gap-2">
@@ -171,7 +174,8 @@ export function render(root) {
   `;
 
   $$('button[data-mode]', root).forEach(b => b.addEventListener('click', () => {
-    store.setProfile({ visMode: b.dataset.mode });
+    if (!activePersona) return;
+    store.updatePersona(store.mode, activePersona.id, { visMode: b.dataset.mode });
     render(root);
   }));
   $('#gate', root).addEventListener('input', (e) => {

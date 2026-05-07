@@ -54,22 +54,56 @@ function cycleTheme() {
   setTheme(next.key);
 }
 
-// ----- Theme cycle pill (top-right) -----------------------------------------
+// ----- Mode + persona pills (top-right) -------------------------------------
 
-function paintThemePill() {
-  const pill = $('#status-pill');
-  if (!pill) return;
-  const t = THEMES.find(x => x.key === currentTheme()) || THEMES[0];
-  pill.title = `Cycle theme · ${t.label} (T)`;
-  pill.innerHTML =
-    `<span class="palette-dots">${t.swatches.map(s => `<span style="background:${escapeHtml(s)}"></span>`).join('')}</span>` +
-    `<span>${escapeHtml(t.label)}</span>`;
+function renderAvatar(av) {
+  if (!av) return '<span style="width:14px;height:14px;border-radius:999px;display:inline-block;background:var(--panel-3)"></span>';
+  if (av.kind === 'emoji') return `<span style="font-size:13px;line-height:1">${escapeHtml(av.value || '·')}</span>`;
+  if (av.kind === 'color') return `<span style="width:12px;height:12px;border-radius:999px;display:inline-block;background:${escapeHtml(av.value || '#888')}"></span>`;
+  return `<span style="width:18px;height:18px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--panel-3);font-size:9px;font-weight:700">${escapeHtml((av.value || '··').slice(0,2))}</span>`;
 }
-paintThemePill();
-bus.on('state:changed', paintThemePill);
 
-const themePill = $('#status-pill');
-if (themePill) themePill.addEventListener('click', () => { cycleTheme(); paintThemePill(); });
+function paintPills() {
+  const me = store.profile;
+  const mode = store.mode;
+  const block = me[mode];
+  const persona = store.activePersona();
+  const modeIcon  = mode === 'dating' ? '♥' : '◆';
+  const otherKey  = mode === 'dating' ? 'networking' : 'dating';
+  const otherEnabled = !!me[otherKey]?.enabled;
+
+  const modePill = $('#mode-pill');
+  if (modePill) {
+    modePill.innerHTML = `<span>${modeIcon}</span><span style="font-weight:600">${mode === 'dating' ? 'Dating' : 'Networking'}</span>`;
+    modePill.title = otherEnabled ? `Switch to ${otherKey} (M)` : `${otherKey} profile is off — toggle it on in Profile`;
+    modePill.disabled = !otherEnabled;
+    modePill.style.opacity = otherEnabled ? '1' : '0.5';
+    modePill.style.cursor  = otherEnabled ? 'pointer' : 'not-allowed';
+    modePill.style.background = `color-mix(in srgb, var(--${mode === 'dating' ? 'rose' : 'mint'}) 14%, transparent)`;
+    modePill.style.borderColor = `color-mix(in srgb, var(--${mode === 'dating' ? 'rose' : 'mint'}) 35%, transparent)`;
+  }
+
+  const personaPill = $('#persona-pill');
+  if (personaPill) {
+    if (!persona) {
+      personaPill.innerHTML = `<span class="text-themed-mute">no persona</span>`;
+    } else {
+      const more = block.personas.length > 1 ? `<span class="text-themed-mute">${block.personas.length}</span>` : '';
+      personaPill.innerHTML = `${renderAvatar(persona.avatar)}<span style="font-weight:600">${escapeHtml(persona.name)}</span>${more}`;
+    }
+    personaPill.title = block.personas.length > 1 ? 'Cycle persona ([ / ])' : 'Add personas on the Profile screen';
+  }
+}
+paintPills();
+bus.on('state:changed', paintPills);
+
+const modePill = $('#mode-pill');
+if (modePill) modePill.addEventListener('click', () => {
+  if (modePill.disabled) return;
+  store.toggleMode();
+});
+const personaPill = $('#persona-pill');
+if (personaPill) personaPill.addEventListener('click', () => store.cyclePersona(1));
 
 // ----- Hotkeys --------------------------------------------------------------
 
@@ -85,6 +119,9 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'i') location.hash = '#/profile';
   if (e.key === 'p') location.hash = '#/privacy';
   if (e.key === 't' || e.key === 'T') cycleTheme();
+  if (e.key === 'm' || e.key === 'M') store.toggleMode();
+  if (e.key === '[') store.cyclePersona(-1);
+  if (e.key === ']') store.cyclePersona(1);
 });
 
 export { setTheme, currentTheme };
