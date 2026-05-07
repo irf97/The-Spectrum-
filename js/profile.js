@@ -35,7 +35,7 @@ function themeTile(t, active) {
 
 function modeToggle(active, key, label, copy) {
   return `
-    <button class="card-soft p-3 text-left grid gap-1 ${active?'ring-2 ring-iris-500':''}" data-mode="${key}">
+    <button class="card-soft p-3 text-left grid gap-1" data-mode="${key}" style="${active?'box-shadow:0 0 0 2px var(--iris)':''}">
       <div class="flex items-center justify-between">
         <span class="font-display font-semibold">${escapeHtml(label)}</span>
         <span class="pill ${active?'pill-mint':'pill-rose'}">${active?'On':'Off'}</span>
