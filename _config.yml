@@ -1,0 +1,9 @@
+theme: jekyll-theme-cayman
+title: The Spectrum
+description: A real-life social operating system — five layered signals (status, match, proximity, identity, rapport).
+
+include:
+  - index.html
+
+exclude:
+  - README.md.bak

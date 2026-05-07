@@ -25,15 +25,16 @@ export const STATUS_NETWORKING = [
 ];
 
 // ---------- Themes -----------------------------------------------------------
+// Aligned with GitHub Pages' supported Jekyll themes. The `theme:` directive
+// in _config.yml styles README rendering; these match the app to those
+// themes' palettes so the look stays consistent across the static and
+// interactive parts of the site.
 
 export const THEMES = [
-  { key:'default', label:'Mint Iris',  swatches:['#3ee0b6','#7b6cff','#ffb43c','#ff5d80'], copy:'Cool cyan + violet · the original.' },
-  { key:'aurora',  label:'Aurora',     swatches:['#78f3d3','#6aa8ff','#c8a8ff','#ff8ad0'], copy:'Soft northern lights.' },
-  { key:'neon',    label:'Neon',       swatches:['#00ffd1','#ff00ff','#ffe338','#ff2080'], copy:'High-contrast cyberpunk.' },
-  { key:'sunset',  label:'Sunset',     swatches:['#ffb380','#b56cff','#ffd073','#ff7593'], copy:'Warm peach + lavender.' },
-  { key:'forest',  label:'Forest',     swatches:['#5eb888','#8aa28f','#d4b366','#c97373'], copy:'Sage + moss + rust.' },
-  { key:'ember',   label:'Ember',      swatches:['#ff8a3c','#e23e62','#ffd073','#ff5d80'], copy:'Hot coals · warm red + gold.' },
-  { key:'mono',    label:'Mono',       swatches:['#f0f0f0','#c0c0c0','#a0a0a0','#808080'], copy:'Pure grayscale.' },
+  { key:'midnight', label:'Midnight', swatches:['#69ff94','#c9d025','#ffcc00','#ff7070'], copy:'Dark, green accent · jekyll-theme-midnight.' },
+  { key:'slate',    label:'Slate',    swatches:['#d6ae01','#4d6cb3','#f5b210','#db4f4a'], copy:'Slate gray + lime · jekyll-theme-slate.' },
+  { key:'hacker',   label:'Hacker',   swatches:['#00ff7f','#ffe97a','#25aa25','#ff5050'], copy:'Matrix green on black · jekyll-theme-hacker.' },
+  { key:'cayman',   label:'Cayman',   swatches:['#159957','#155799','#e6a700','#c9302c'], copy:'Light · blue→green · jekyll-theme-cayman.' },
 ];
 
 // ---------- Gender + gender-aware physical schema ---------------------------

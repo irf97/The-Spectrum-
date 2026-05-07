@@ -31,12 +31,13 @@ store.startTicking();
 // ----- Theme -----------------------------------------------------------------
 
 function applyTheme(key) {
-  const k = THEMES.find(t => t.key === key) ? key : 'default';
+  const k = THEMES.find(t => t.key === key) ? key : 'midnight';
   document.documentElement.setAttribute('data-theme', k);
   document.body && document.body.setAttribute('data-theme', k);
 }
 function currentTheme() {
-  return store.getUI('theme', { key: 'default' }).key || 'default';
+  const k = store.getUI('theme', { key: 'midnight' }).key || 'midnight';
+  return THEMES.find(t => t.key === k) ? k : 'midnight';
 }
 function setTheme(key) {
   store.setUI('theme', { key });
