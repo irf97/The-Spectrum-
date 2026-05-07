@@ -205,13 +205,14 @@ a { color: inherit; }
 
 .tab {
   position: relative;
-  padding: .4rem .75rem;
+  padding: .35rem .6rem;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-soft);
   border: 1px solid transparent;
   transition: all .15s ease;
 }
+#nav .tab { padding: .3rem .5rem; }
 .tab:hover { background: rgba(255,255,255,.04); }
 .tab[aria-current="page"] {
   background: color-mix(in srgb, var(--iris) 18%, transparent);

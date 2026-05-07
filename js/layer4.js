@@ -3,7 +3,7 @@
 // reveal default TTL, glance intensity (blur + saturate sliders), reveal
 // history, auto-revoke triggers.
 
-import { VIS_MODES, REVEAL_CHANNELS, REVEAL_TTL_OPTIONS, AUDIENCE_TIERS, SAMPLE_PEOPLE } from './data.js';
+import { VIS_MODES, REVEAL_CHANNELS, REVEAL_TTL_OPTIONS, AUDIENCE_TIERS, SAMPLE_PEOPLE, MATCH_BUCKETS } from './data.js';
 import { resolveView } from './engines/identity.js';
 import { scoreCandidate } from './engines/match.js';
 import { effectiveTier, tierMeta } from './engines/privacy.js';
@@ -42,7 +42,8 @@ function channelRow(ch, identity) {
 
 function reveal(p, viewer, opts) {
   const datingShared = !!viewer.modes?.dating && !!p.modes?.dating;
-  const r = datingShared ? scoreCandidate(p, viewer.dating.prefs) : { pct: 0 };
+  const unknown = MATCH_BUCKETS.find(b => b.key === 'unknown');
+  const r = datingShared ? scoreCandidate(p, viewer.dating.prefs) : { pct: 0, bucket: unknown };
   const view = resolveView(viewer, p, r.pct, opts);
   const visual = (() => {
     switch (view.shows) {

@@ -36,9 +36,7 @@ export function renderNav() {
   if (!nav) return;
   const visible = routes.filter(r => r.label);
   nav.innerHTML = visible.map(r =>
-    `<a class="tab" href="#${r.path}" data-name="${r.name}" aria-current="${r.name === activeName ? 'page' : 'false'}">
-       <span class="hidden sm:inline">${r.icon ? r.icon + ' ' : ''}</span>${r.label}
-     </a>`
+    `<a class="tab" href="#${r.path}" data-name="${r.name}" aria-current="${r.name === activeName ? 'page' : 'false'}">${r.label}</a>`
   ).join('');
 }
 
