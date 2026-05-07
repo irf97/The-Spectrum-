@@ -18,10 +18,10 @@ function rapportBar(points) {
     <div class="grid gap-1">
       <div class="flex items-center justify-between text-xs">
         ${tierBadge(pr.tier)}
-        <span class="text-slate-500">${escapeHtml(goal)}</span>
+        <span class="text-themed-mute">${escapeHtml(goal)}</span>
       </div>
       <div class="bar rep tall"><i style="width:${(pr.progress*100).toFixed(0)}%;background:${pr.tier.color}"></i></div>
-      <div class="text-[11px] text-slate-500">${Math.round(points)} pts</div>
+      <div class="text-[11px] text-themed-mute">${Math.round(points)} pts</div>
     </div>`;
 }
 
@@ -38,7 +38,7 @@ function hobbyEditor(me) {
         <button id="add-hobby" class="btn btn-sm btn-primary">Add hobby</button>
       </div>
       <div id="my-hobbies" class="grid gap-2">
-        ${(me.hobbies||[]).map((h,i) => myHobbyRow(h,i)).join('') || '<div class="text-sm text-slate-500">No hobbies yet.</div>'}
+        ${(me.hobbies||[]).map((h,i) => myHobbyRow(h,i)).join('') || '<div class="text-sm text-themed-mute">No hobbies yet.</div>'}
       </div>
     </div>`;
 }
@@ -51,7 +51,7 @@ function myHobbyRow(h, i) {
         <span class="text-2xl">${meta?.icon||'🔹'}</span>
         <div>
           <div class="font-medium">${escapeHtml(meta?.label || h.key)}</div>
-          <div class="text-[11px] text-slate-500">${rankFor(h.skill).label}</div>
+          <div class="text-[11px] text-themed-mute">${rankFor(h.skill).label}</div>
         </div>
       </div>
       <input type="range" min="1" max="100" step="1" value="${h.skill}" data-role="skill" class="w-32 sm:w-40" />
@@ -70,8 +70,8 @@ function relationsRow(p, me, rapportRow) {
       <div class="flex items-center gap-3">
         <span class="avatar w-10 h-10" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${initials(p.name)}</span>
         <div class="flex-1 min-w-0">
-          <a href="#/people/${p.id}" class="font-medium truncate hover:text-iris-400">${escapeHtml(p.name)}</a>
-          <div class="text-[11px] text-slate-500">${shared.length?`Shared: ${shared.map(k=>hobbyMeta(k)?.label||k).join(', ')}`:'No shared hobbies yet'}</div>
+          <a href="#/people/${p.id}" class="font-medium truncate">${escapeHtml(p.name)}</a>
+          <div class="text-[11px] text-themed-mute">${shared.length?`Shared: ${shared.map(k=>hobbyMeta(k)?.label||k).join(', ')}`:'No shared hobbies yet'}</div>
         </div>
         ${rel.teacher ? `<span class="pill pill-sun" title="${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}">🎓 Teacher: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
         ${rel.student ? `<span class="pill pill-mint" title="${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}">📚 Student: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
@@ -108,7 +108,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 5</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Rapport & Hobbies</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">World-of-Warcraft-style reputation tracks per individual. Earned through proximity dwell-time, shared hobby sessions, and manual ratings. Hobby skill ranks pair you with teachers or students automatically when someone is looking for one.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">World-of-Warcraft-style reputation tracks per individual. Earned through proximity dwell-time, shared hobby sessions, and manual ratings. Hobby skill ranks pair you with teachers or students automatically when someone is looking for one.</p>
         </div>
         <div class="flex flex-wrap gap-1.5">
           ${REP_TIERS.map(t => `<span class="pill" style="color:${t.color};border-color:${t.color}55">${t.label} · ${sum.counts[t.key]}</span>`).join('')}
@@ -120,33 +120,33 @@ export function render(root) {
       <div class="grid lg:grid-cols-2 gap-6">
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Looking for a teacher?</h2>
-          <p class="text-xs text-slate-500">Set role to "Looking for teacher" on a hobby. Higher-ranked candidates around you surface here.</p>
+          <p class="text-xs text-themed-mute">Set role to "Looking for teacher" on a hobby. Higher-ranked candidates around you surface here.</p>
           <div class="grid gap-2">
             ${teachers.length ? teachers.slice(0,8).map(({p,rel}) => `
               <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60">
                 <span class="avatar w-9 h-9" style="background:${colorFor(p.id)}">${initials(p.name)}</span>
                 <div class="flex-1 min-w-0">
                   <div class="font-medium">${escapeHtml(p.name)}</div>
-                  <div class="text-[11px] text-slate-500">${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')} · gap +${rel.teacher.gap} ranks</div>
+                  <div class="text-[11px] text-themed-mute">${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')} · gap +${rel.teacher.gap} ranks</div>
                 </div>
                 ${rankPill(p.hobbies.find(h=>h.key===rel.teacher.hobby)?.skill)}
-              </a>`).join('') : '<div class="text-sm text-slate-500">No matches yet — try setting a hobby role to "Looking for teacher".</div>'}
+              </a>`).join('') : '<div class="text-sm text-themed-mute">No matches yet — try setting a hobby role to "Looking for teacher".</div>'}
           </div>
         </div>
 
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Looking to teach?</h2>
-          <p class="text-xs text-slate-500">Set role to "Looking for student" on a hobby. Lower-ranked candidates open to learning surface here.</p>
+          <p class="text-xs text-themed-mute">Set role to "Looking for student" on a hobby. Lower-ranked candidates open to learning surface here.</p>
           <div class="grid gap-2">
             ${students.length ? students.slice(0,8).map(({p,rel}) => `
               <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60">
                 <span class="avatar w-9 h-9" style="background:${colorFor(p.id)}">${initials(p.name)}</span>
                 <div class="flex-1 min-w-0">
                   <div class="font-medium">${escapeHtml(p.name)}</div>
-                  <div class="text-[11px] text-slate-500">${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')} · gap ${rel.student.gap} ranks</div>
+                  <div class="text-[11px] text-themed-mute">${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')} · gap ${rel.student.gap} ranks</div>
                 </div>
                 ${rankPill(p.hobbies.find(h=>h.key===rel.student.hobby)?.skill)}
-              </a>`).join('') : '<div class="text-sm text-slate-500">No matches yet — try setting a hobby role to "Looking for student".</div>'}
+              </a>`).join('') : '<div class="text-sm text-themed-mute">No matches yet — try setting a hobby role to "Looking for student".</div>'}
           </div>
         </div>
       </div>
@@ -159,10 +159,10 @@ export function render(root) {
       </div>
     </section>
 
-    <dialog id="add-hobby-modal" class="card p-4 max-w-md w-full bg-ink-800 text-slate-200" style="border-radius:14px;">
+    <dialog id="add-hobby-modal" class="card p-4 max-w-md w-full bg-ink-800 text-themed" style="border-radius:14px;">
       <h3 class="font-display font-semibold text-lg mb-2">Add a hobby</h3>
       <select id="add-hobby-key" class="select mb-2">${HOBBY_CATALOG.map(h => `<option value="${h.key}">${h.icon} ${h.label}</option>`).join('')}</select>
-      <label class="text-xs text-slate-400">Skill (1–100)</label>
+      <label class="text-xs text-themed-soft">Skill (1–100)</label>
       <input id="add-hobby-skill" type="range" min="1" max="100" value="20" class="mb-2" />
       <select id="add-hobby-role" class="select mb-3">${HOBBY_ROLES.map(r=>`<option value="${r.key}">${r.icon} ${r.label}</option>`).join('')}</select>
       <div class="flex justify-end gap-2">

@@ -16,7 +16,7 @@ function zoneCard(zone, count) {
         </div>
         <span class="pill" style="color:${zone.color};border-color:${zone.color}55">${count}</span>
       </div>
-      <p class="text-xs text-slate-400">${escapeHtml(zone.copy)}</p>
+      <p class="text-xs text-themed-soft">${escapeHtml(zone.copy)}</p>
     </div>`;
 }
 
@@ -33,7 +33,7 @@ function row(p, world, muted) {
           ${!w.stable ? '<span class="pill pill-sun">flicker</span>' : ''}
           ${!w.optIn ? '<span class="pill pill-rose">opt-out</span>' : ''}
         </div>
-        <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
+        <div class="flex items-center gap-2 text-[11px] text-themed-mute mt-1">
           <span>~${(w.dist||0).toFixed(1)}m</span>
           <span class="bar thin flex-1"><i style="width:${((w.signal||0)*100).toFixed(0)}%"></i></span>
           <span>${((w.signal||0)*100|0)}%</span>
@@ -64,7 +64,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 3 · 10m world</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Third-Space Proximity</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">The Spectrum operates inside a 10m venue bubble — four bands collapsed into the room you're already in. Beyond 10m, people simply do not appear.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">The Spectrum operates inside a 10m venue bubble — four bands collapsed into the room you're already in. Beyond 10m, people simply do not appear.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="pill ${me.optIn?'pill-mint':'pill-rose'}"><span class="dot"></span> ${me.optIn?'You are discoverable':'You are private'}</span>
@@ -85,7 +85,7 @@ export function render(root) {
         <aside class="lg:col-span-2 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Privacy controls</h2>
           <div class="card-soft p-3">
-            <label class="text-xs text-slate-400">Allowed signal source</label>
+            <label class="text-xs text-themed-soft">Allowed signal source</label>
             <select id="sig-source" class="select mt-1">
               <option value="ble" ${me.privacy.allowSignal==='ble'?'selected':''}>BLE / UWB (recommended)</option>
               <option value="wifi" ${me.privacy.allowSignal==='wifi'?'selected':''}>Wi-Fi presence (coarser)</option>
@@ -93,13 +93,13 @@ export function render(root) {
             </select>
           </div>
           <div class="card-soft p-3 grid gap-2">
-            <label class="text-xs text-slate-400">Hide from candidates whose match % is below</label>
+            <label class="text-xs text-themed-soft">Hide from candidates whose match % is below</label>
             <input type="range" id="hide-below" min="0" max="1" step="0.05" value="${me.privacy.hideFromMatchBelow}" />
             <div class="text-sm">${Math.round(me.privacy.hideFromMatchBelow*100)}%</div>
           </div>
           <div class="card-soft p-3">
             <h3 class="font-display font-semibold mb-2">How the engine classifies</h3>
-            <ul class="text-xs text-slate-400 grid gap-1.5">
+            <ul class="text-xs text-themed-soft grid gap-1.5">
               <li>· 0–2m, eye-contact range → <b style="color:#78f3d3">Reach</b></li>
               <li>· 2–5m, same booth or circle → <b style="color:#9b8cff">Nearby</b></li>
               <li>· 5–10m, same area of the venue → <b style="color:#7b6cff">Room</b></li>

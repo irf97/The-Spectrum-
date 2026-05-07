@@ -16,7 +16,7 @@ function modeCard(mode, current) {
     <button data-mode="${mode.key}" class="card-soft text-left p-3 grid gap-1 ${sel?'ring-2 ring-iris-500':''}">
       <div class="text-2xl leading-none">${mode.icon}</div>
       <div class="font-display font-semibold">${escapeHtml(mode.label)}</div>
-      <div class="text-xs text-slate-400">${escapeHtml(mode.copy)}</div>
+      <div class="text-xs text-themed-soft">${escapeHtml(mode.copy)}</div>
     </button>`;
 }
 
@@ -33,7 +33,7 @@ function channelRow(ch, identity) {
         <span class="text-xl">${ch.icon}</span>
         <div>
           <div class="font-medium text-sm">${escapeHtml(ch.label)}</div>
-          <div class="text-[11px] text-slate-500">${escapeHtml(ch.copy)} · currently <span style="color:${tm.swatch}">${escapeHtml(tm.label)}</span></div>
+          <div class="text-[11px] text-themed-mute">${escapeHtml(ch.copy)} · currently <span style="color:${tm.swatch}">${escapeHtml(tm.label)}</span></div>
         </div>
       </div>
       <select class="select" data-channel-tier="${ch.key}">${tierOpts(cur)}</select>
@@ -73,7 +73,7 @@ function reveal(p, viewer, opts) {
           ${view.gated   ? raw('<span class="pill pill-rose">gated</span>') : ''}
           ${view.mutual  ? raw('<span class="pill pill-mint">mutual</span>') : ''}
         </div>
-        <div class="text-[11px] text-slate-500 mt-1">${view.reasons.join(' · ') || 'normal visibility'}</div>
+        <div class="text-[11px] text-themed-mute mt-1">${view.reasons.join(' · ') || 'normal visibility'}</div>
       </div>
       <button class="btn btn-sm" data-toggle-reveal="${p.id}">${opts.reveals[p.id]?'Un-flag reveal':'Flag for reveal'}</button>
     </div>
@@ -81,11 +81,11 @@ function reveal(p, viewer, opts) {
 }
 
 function historyList(history) {
-  if (!history || history.length === 0) return '<div class="text-xs text-slate-500">No reveal events yet.</div>';
+  if (!history || history.length === 0) return '<div class="text-xs text-themed-mute">No reveal events yet.</div>';
   return history.slice(-12).reverse().map(h => `
     <div class="card-soft p-2 text-xs flex items-center justify-between">
       <span>${escapeHtml(h.action)} · ${escapeHtml(h.channel || 'all')} · ${escapeHtml(h.personLabel || h.personId)}</span>
-      <span class="text-slate-500">${fmtRel(h.ts)}</span>
+      <span class="text-themed-mute">${fmtRel(h.ts)}</span>
     </div>`).join('');
 }
 
@@ -102,7 +102,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 4</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Identity & Anonymity</h1>
-          <p class="text-sm text-slate-400 mt-1 max-w-2xl">Default visibility mode plus per-channel reveal tiers (photo / voice / video / handle / place), glance blur, default reveal duration, and a history of reveal events.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Default visibility mode plus per-channel reveal tiers (photo / voice / video / handle / place), glance blur, default reveal duration, and a history of reveal events.</p>
         </div>
         <span class="pill pill-iris">${VIS_MODES.find(m=>m.key===me.visMode)?.label} · default</span>
       </header>
@@ -116,18 +116,18 @@ export function render(root) {
           <div class="card p-4 grid gap-3">
             <h2 class="font-display font-semibold text-lg">Reveal gate</h2>
             <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-400">Show richer than avatar at match ≥</span>
+              <span class="text-sm text-themed-soft">Show richer than avatar at match ≥</span>
               <span class="font-display font-semibold" id="gate-val">${Math.round(me.visMatchGate*100)}%</span>
             </div>
             <input id="gate" type="range" min="0" max="1" step="0.05" value="${me.visMatchGate}" />
-            <p class="text-[11px] text-slate-500">Higher gate → more "look around the room" energy. Below the gate, people see your avatar / alias only.</p>
+            <p class="text-[11px] text-themed-mute">Higher gate → more "look around the room" energy. Below the gate, people see your avatar / alias only.</p>
           </div>
 
           <div class="card p-4 grid gap-3">
             <h2 class="font-display font-semibold text-lg">Glance intensity</h2>
-            <label class="text-xs text-slate-400">Blur (px) <span class="text-slate-300 ml-1" id="blur-val">${identity.glance?.blur ?? 3}</span></label>
+            <label class="text-xs text-themed-soft">Blur (px) <span class="text-themed-soft ml-1" id="blur-val">${identity.glance?.blur ?? 3}</span></label>
             <input id="glance-blur" type="range" min="0" max="12" step="1" value="${identity.glance?.blur ?? 3}" />
-            <label class="text-xs text-slate-400">Saturate <span class="text-slate-300 ml-1" id="sat-val">${(identity.glance?.saturate ?? 0.7).toFixed(2)}</span></label>
+            <label class="text-xs text-themed-soft">Saturate <span class="text-themed-soft ml-1" id="sat-val">${(identity.glance?.saturate ?? 0.7).toFixed(2)}</span></label>
             <input id="glance-sat" type="range" min="0" max="1.5" step="0.05" value="${identity.glance?.saturate ?? 0.7}" />
           </div>
 
@@ -136,7 +136,7 @@ export function render(root) {
             <select class="select" id="reveal-ttl">
               ${REVEAL_TTL_OPTIONS.map(t => `<option value="${t.key}" ${(identity.revealTtlKey||'2h')===t.key?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}
             </select>
-            <p class="text-[11px] text-slate-500">A reveal handshake stays active for this long, then collapses back to your default mode.</p>
+            <p class="text-[11px] text-themed-mute">A reveal handshake stays active for this long, then collapses back to your default mode.</p>
           </div>
 
           <div class="card p-4 grid gap-2">
@@ -150,7 +150,7 @@ export function render(root) {
         <div class="lg:col-span-3 grid gap-3">
           <div class="card p-4 grid gap-3">
             <h2 class="font-display font-semibold text-lg">Per-channel reveal</h2>
-            <p class="text-[11px] text-slate-500">Each reveal channel has its own audience tier. Photo can be Mutual reveal while Handle stays Match-gated, and vice versa.</p>
+            <p class="text-[11px] text-themed-mute">Each reveal channel has its own audience tier. Photo can be Mutual reveal while Handle stays Match-gated, and vice versa.</p>
             <div class="grid gap-2">${REVEAL_CHANNELS.map(c => channelRow(c, identity)).join('')}</div>
           </div>
 
