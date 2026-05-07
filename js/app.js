@@ -1,7 +1,7 @@
 import { defineRoute, start, renderNav } from './router.js';
 import { store } from './state.js';
-import { bus, $ } from './util.js';
-import { STATUS_DATING, STATUS_NETWORKING, THEMES } from './data.js';
+import { bus, $, escapeHtml } from './util.js';
+import { THEMES } from './data.js';
 
 import * as Floor     from './floor.js';
 import * as Layer1    from './layer1.js';
@@ -54,30 +54,22 @@ function cycleTheme() {
   setTheme(next.key);
 }
 
-// ----- Status pill ----------------------------------------------------------
+// ----- Theme cycle pill (top-right) -----------------------------------------
 
-function paintPill() {
-  const me = store.profile;
-  const dating = !!me.modes?.dating;
-  const networking = !!me.modes?.networking;
+function paintThemePill() {
   const pill = $('#status-pill');
   if (!pill) return;
-  if (!dating && !networking) {
-    pill.innerHTML = `<span>·</span><span>off</span><span class="text-themed-mute">· no profiles active</span>`;
-    return;
-  }
-  // When both modes are active, show the dating chip first; click cycles.
-  const useNetworking = networking && !dating;
-  const list = useNetworking ? STATUS_NETWORKING : STATUS_DATING;
-  const cur  = list.find(s => s.key === (useNetworking ? me.status.networking : me.status.dating)) || list[0];
-  const modeLabel = dating && networking ? 'both' : useNetworking ? 'networking' : 'dating';
-  pill.innerHTML = `<span>${cur.icon}</span><span>${cur.label}</span><span class="text-themed-mute">· ${modeLabel}</span>`;
+  const t = THEMES.find(x => x.key === currentTheme()) || THEMES[0];
+  pill.title = `Cycle theme · ${t.label} (T)`;
+  pill.innerHTML =
+    `<span class="palette-dots">${t.swatches.map(s => `<span style="background:${escapeHtml(s)}"></span>`).join('')}</span>` +
+    `<span>${escapeHtml(t.label)}</span>`;
 }
-paintPill();
-bus.on('state:changed', paintPill);
+paintThemePill();
+bus.on('state:changed', paintThemePill);
 
-const statusPill = $('#status-pill');
-if (statusPill) statusPill.addEventListener('click', () => { location.hash = '#/status'; });
+const themePill = $('#status-pill');
+if (themePill) themePill.addEventListener('click', () => { cycleTheme(); paintThemePill(); });
 
 // ----- Hotkeys --------------------------------------------------------------
 

@@ -442,8 +442,8 @@ input[type="range"]::-moz-range-thumb {
   transition: all .15s ease;
 }
 .theme-cycle:hover { border-color: color-mix(in srgb, var(--iris) 40%, var(--line)); color: var(--text); }
-.theme-cycle .palette-dots { display: inline-flex; gap: 3px; }
-.theme-cycle .palette-dots span {
+.palette-dots { display: inline-flex; gap: 3px; }
+.palette-dots > span {
   width: 8px; height: 8px; border-radius: 999px;
   box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
 }
