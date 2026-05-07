@@ -220,6 +220,13 @@ a { color: inherit; }
   box-shadow: 0 0 0 0 transparent, 0 4px 16px -8px var(--iris);
 }
 
+@media (max-width: 640px) {
+  #nav {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  }
+}
+
 /* ---------- Sliders ---------------------------------------------------- */
 
 input[type="range"] {
