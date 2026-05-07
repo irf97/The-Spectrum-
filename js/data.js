@@ -385,6 +385,7 @@ function defaultDatingPersona() {
     name: 'Default',
     avatar: { kind: 'emoji', value: '✨' },
     preset: 'custom',
+    roleplay: '',
     status: 'open',
     visMode: 'hybrid',
     self: {
@@ -415,6 +416,7 @@ function defaultNetworkingPersona() {
     name: 'Default',
     avatar: { kind: 'emoji', value: '🎯' },
     preset: 'custom',
+    roleplay: '',
     status: 'open',
     visMode: 'hybrid',
     self: {

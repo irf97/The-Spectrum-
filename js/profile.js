@@ -1,4 +1,4 @@
-// Profile — identity + per-mode personas (alter egos) + theme.
+// Profile — identity + Dating self + Networking self + Alter egos.
 
 import {
   fieldsFor, GENDERS, VIS_MODES, STATUS_DATING, STATUS_NETWORKING,
@@ -22,31 +22,16 @@ function avatarHtml(av, size = 28) {
   return `<span style="width:${sz};height:${sz};border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--panel-3);font-size:${size*0.4}px;font-weight:700">${escapeHtml((av.value || '··').slice(0,2))}</span>`;
 }
 
-function selfFieldRow(f, self, scope, personaId) {
+function selfFieldRow(f, self, modeKey, personaId) {
   const cur = self?.[f.key] ?? '';
   return `
     <label class="grid gap-1">
       <span class="text-xs text-themed-mute">${escapeHtml(f.label)}</span>
-      <select class="select" data-scope="${scope}" data-persona="${personaId}" data-self="${f.key}">
+      <select class="select" data-mode="${modeKey}" data-persona="${personaId}" data-self="${f.key}">
         <option value="">— unset —</option>
         ${f.options.map(o => `<option ${cur===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
       </select>
     </label>`;
-}
-
-function personaCard(persona, active, modeKey) {
-  const presetMeta = PERSONA_PRESETS.find(x => x.key === persona.preset) || PERSONA_PRESETS[0];
-  return `
-    <button class="card-soft p-3 grid gap-1.5 text-left" data-pick-persona="${persona.id}" data-mode="${modeKey}"
-            style="${active?'box-shadow:0 0 0 2px var(--iris)':''}">
-      <div class="flex items-center gap-2">
-        ${avatarHtml(persona.avatar, 28)}
-        <div class="flex-1 min-w-0">
-          <div class="font-display font-semibold truncate">${escapeHtml(persona.name)}</div>
-          <div class="text-[11px] text-themed-mute">${escapeHtml(presetMeta.icon)} ${escapeHtml(presetMeta.label)} · ${escapeHtml(persona.status)}</div>
-        </div>
-      </div>
-    </button>`;
 }
 
 function avatarPicker(persona, modeKey) {
@@ -68,18 +53,83 @@ function avatarPicker(persona, modeKey) {
     </div>`;
 }
 
-function personaEditor(persona, modeKey) {
+function selfDescriptionGrid(persona, modeKey) {
   const isDating = modeKey === 'dating';
   const fields = isDating ? fieldsFor(selfFieldKey(persona.self)) : NETWORKING_FIELDS;
   const nonGenderFields = fields.filter(f => f.key !== 'gender');
-  const statusList = isDating ? STATUS_DATING : STATUS_NETWORKING;
+  return `
+    ${isDating ? `
+    <div class="grid gap-1">
+      <span class="text-xs text-themed-mute">Gender</span>
+      <div class="flex flex-wrap gap-1.5">
+        ${GENDERS.filter(g=>g.key!=='any').map(g => {
+          const sel = persona.self?.gender === g.label;
+          return `<button class="pill" data-persona-gender="${persona.id}" data-mode="${modeKey}" data-gender="${escapeHtml(g.label)}"
+                  style="${sel?'box-shadow:0 0 0 2px var(--iris)':''}">${g.icon} ${escapeHtml(g.label)}</button>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+    <div class="grid gap-2">
+      <div class="text-xs text-themed-mute">${isDating ? 'Self-description (physical / lifestyle)' : 'Self-description (ambition / role / expertise)'}</div>
+      <div class="grid sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        ${nonGenderFields.map(f => selfFieldRow(f, persona.self, modeKey, persona.id)).join('')}
+      </div>
+    </div>`;
+}
 
+// "Default self" editor — for the default persona of a mode. Shows status, vismode, self description.
+function defaultSelfEditor(persona, modeKey) {
+  const isDating = modeKey === 'dating';
+  const statusList = isDating ? STATUS_DATING : STATUS_NETWORKING;
+  return `
+    <div class="grid sm:grid-cols-2 gap-3">
+      <label class="grid gap-1">
+        <span class="text-xs text-themed-mute">Status</span>
+        <select class="select" data-persona-status="${persona.id}" data-mode="${modeKey}">
+          ${statusList.map(s => `<option value="${s.key}" ${persona.status===s.key?'selected':''}>${s.icon} ${s.label}</option>`).join('')}
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span class="text-xs text-themed-mute">Default visibility</span>
+        <select class="select" data-persona-vismode="${persona.id}" data-mode="${modeKey}">
+          ${VIS_MODES.map(m => `<option value="${m.key}" ${persona.visMode===m.key?'selected':''}>${m.icon} ${m.label}</option>`).join('')}
+        </select>
+      </label>
+    </div>
+    ${selfDescriptionGrid(persona, modeKey)}
+  `;
+}
+
+// Alter ego editor — adds name, preset, roleplay tag, avatar, plus the default-self bits.
+function alterEgoEditor(persona, modeKey) {
+  const isDating = modeKey === 'dating';
+  const statusList = isDating ? STATUS_DATING : STATUS_NETWORKING;
   return `
     <div class="card p-4 grid gap-4">
+      <div class="flex items-center gap-2">
+        ${avatarHtml(persona.avatar, 32)}
+        <div class="flex-1 min-w-0">
+          <div class="font-display font-semibold truncate">${escapeHtml(persona.name)}</div>
+          <div class="text-[11px] text-themed-mute">${escapeHtml(modeKey === 'dating' ? 'Dating' : 'Networking')}${persona.roleplay ? ` · as ${escapeHtml(persona.roleplay)}` : ''}</div>
+        </div>
+      </div>
+
       <div class="grid sm:grid-cols-2 gap-3">
         <label class="grid gap-1">
           <span class="text-xs text-themed-mute">Alter ego name</span>
           <input class="input" value="${escapeHtml(persona.name)}" data-persona-name="${persona.id}" data-mode="${modeKey}" />
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-themed-mute">Roleplay tag (e.g. "vampire", "detective")</span>
+          <input class="input" value="${escapeHtml(persona.roleplay || '')}" placeholder="leave empty for no roleplay"
+                 data-persona-roleplay="${persona.id}" data-mode="${modeKey}" />
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-themed-mute">Base mode</span>
+          <select class="select" data-persona-mode="${persona.id}" data-mode="${modeKey}">
+            <option value="dating" ${modeKey==='dating'?'selected':''}>♥ Dating</option>
+            <option value="networking" ${modeKey==='networking'?'selected':''}>◆ Networking</option>
+          </select>
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-themed-mute">Preset</span>
@@ -102,67 +152,48 @@ function personaEditor(persona, modeKey) {
       </div>
 
       ${avatarPicker(persona, modeKey)}
-
-      ${isDating ? `
-      <div class="grid gap-1">
-        <span class="text-xs text-themed-mute">Gender</span>
-        <div class="flex flex-wrap gap-1.5">
-          ${GENDERS.filter(g=>g.key!=='any').map(g => {
-            const sel = persona.self?.gender === g.label;
-            return `<button class="pill" data-persona-gender="${persona.id}" data-mode="${modeKey}" data-gender="${escapeHtml(g.label)}"
-                    style="${sel?'box-shadow:0 0 0 2px var(--iris)':''}">${g.icon} ${escapeHtml(g.label)}</button>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
-
-      <div class="grid gap-2">
-        <div class="text-xs text-themed-mute">${isDating ? 'Self-description (physical / lifestyle)' : 'Self-description (ambition / role / expertise)'}</div>
-        <div class="grid sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          ${nonGenderFields.map(f => selfFieldRow(f, persona.self, modeKey, persona.id)).join('')}
-        </div>
-      </div>
+      ${selfDescriptionGrid(persona, modeKey)}
 
       <div class="flex gap-2 flex-wrap">
+        <button class="btn btn-sm" data-activate-persona="${persona.id}" data-mode="${modeKey}">Activate</button>
         <button class="btn btn-sm" data-duplicate-persona="${persona.id}" data-mode="${modeKey}">Duplicate</button>
         <button class="btn btn-sm btn-rose" data-delete-persona="${persona.id}" data-mode="${modeKey}">Delete</button>
       </div>
     </div>`;
 }
 
-function modeBlock(modeKey, me) {
-  const block = me[modeKey];
-  const personas = block.personas;
-  const active = personas.find(p => p.id === block.activePersonaId) || personas[0];
-  const enabled = !!block.enabled;
-  const accent = modeKey === 'dating' ? 'pill-rose' : 'pill-mint';
-  const label = modeKey === 'dating' ? 'Dating' : 'Networking';
-
+function alterEgoCard(persona, modeKey, isActive) {
+  const accent = modeKey === 'dating' ? 'var(--rose)' : 'var(--mint)';
   return `
-    <section class="card p-4 grid gap-4 ${enabled?'':'opacity-60'}">
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <div class="flex items-center gap-2">
-          <h2 class="font-display font-semibold text-lg">${label} alter egos</h2>
-          <span class="pill ${enabled?accent:'pill-slate'}">${enabled?'On':'Off'}</span>
-        </div>
-        <div class="flex gap-2 flex-wrap">
-          <select class="select w-auto text-sm" data-add-preset="${modeKey}">
-            <option value="">+ New alter ego…</option>
-            ${PERSONA_PRESETS.map(p => `<option value="${p.key}">${escapeHtml(p.icon)} ${escapeHtml(p.label)}</option>`).join('')}
-          </select>
-          <button class="btn btn-sm" data-toggle-mode-enabled="${modeKey}">${enabled?'Disable':'Enable'} mode</button>
-        </div>
+    <button class="card-soft p-3 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-left"
+            data-pick-alter="${persona.id}" data-mode="${modeKey}"
+            style="${isActive?'box-shadow:0 0 0 2px var(--iris)':''}">
+      ${avatarHtml(persona.avatar, 32)}
+      <div class="min-w-0">
+        <div class="font-display font-semibold truncate">${escapeHtml(persona.name)}</div>
+        <div class="text-[11px]" style="color:${accent}">${escapeHtml(modeKey === 'dating' ? 'Dating' : 'Networking')}${persona.roleplay ? ` · as ${escapeHtml(persona.roleplay)}` : ''}</div>
       </div>
-
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        ${personas.map(p => personaCard(p, p.id === active?.id, modeKey)).join('')}
-      </div>
-
-      ${active ? personaEditor(active, modeKey) : ''}
-    </section>`;
+      <div class="text-[11px] text-themed-mute">${escapeHtml(persona.status || '')}</div>
+    </button>`;
 }
 
 export function render(root) {
   const me = store.profile;
+  const datingDefault     = me.dating.personas.find(p => p.id === 'default') || me.dating.personas[0];
+  const networkingDefault = me.networking.personas.find(p => p.id === 'default') || me.networking.personas[0];
+
+  // Alter egos = every persona that isn't the "default" of its mode.
+  const alterEgos = [];
+  for (const m of ['dating','networking']) {
+    for (const p of me[m].personas) {
+      if (p.id !== 'default') alterEgos.push({ mode: m, persona: p });
+    }
+  }
+  const editingId = store.getUI('profile', { editingAlterEgo: null }).editingAlterEgo;
+  const editing = alterEgos.find(x => x.persona.id === editingId) || alterEgos[0] || null;
+
+  const activeMode = store.mode;
+  const activeId = store.activePersonaId();
 
   root.innerHTML = `
     <section class="grid gap-6">
@@ -170,7 +201,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Profile</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">${escapeHtml(me.name)} <span class="text-themed-mute">@${escapeHtml(me.alias)}</span></h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Two modes (Dating / Networking). Each holds alter egos for different settings, moods, days. The top-right pill cluster switches mode and picks alter ego.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Three segments: your <b>Dating self</b>, your <b>Networking self</b>, and the <b>Alter egos</b> you can roleplay as. Pick one in the top-right pill at any time.</p>
         </div>
         <div class="flex gap-2">
           <a href="#/privacy" class="btn btn-primary">Privacy matrix</a>
@@ -199,52 +230,99 @@ export function render(root) {
         </label>
       </div>
 
-      ${modeBlock('dating', me)}
-      ${modeBlock('networking', me)}
+      <section class="card p-4 grid gap-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h2 class="font-display font-semibold text-lg">Dating self</h2>
+          <span class="pill pill-rose">♥ Dating</span>
+        </div>
+        <p class="text-xs text-themed-mute">Your real dating self — used when no alter ego is active.</p>
+        ${defaultSelfEditor(datingDefault, 'dating')}
+      </section>
+
+      <section class="card p-4 grid gap-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h2 class="font-display font-semibold text-lg">Networking self</h2>
+          <span class="pill pill-mint">◆ Networking</span>
+        </div>
+        <p class="text-xs text-themed-mute">Your real networking self — used when no alter ego is active.</p>
+        ${defaultSelfEditor(networkingDefault, 'networking')}
+      </section>
+
+      <section class="card p-4 grid gap-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h2 class="font-display font-semibold text-lg">Alter egos</h2>
+          <div class="flex items-center gap-2">
+            <select id="add-alter-mode" class="select w-auto text-sm">
+              <option value="dating">♥ Dating</option>
+              <option value="networking">◆ Networking</option>
+            </select>
+            <input id="add-alter-name" class="input w-40 text-sm" placeholder="Name (e.g. Vampire)" />
+            <button id="add-alter-go" class="btn btn-sm btn-primary">+ Add</button>
+          </div>
+        </div>
+        <p class="text-xs text-themed-mute">Roleplay characters tied to a base mode. While active, others see "${escapeHtml(activeMode === 'dating' ? 'Dating' : 'Networking')} · as &lt;your roleplay&gt;".</p>
+
+        ${alterEgos.length ? `
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          ${alterEgos.map(({mode, persona}) => alterEgoCard(persona, mode, persona.id === editing?.persona.id)).join('')}
+        </div>
+        ${editing ? alterEgoEditor(editing.persona, editing.mode) : ''}
+        ` : `<div class="card-soft p-4 text-sm text-themed-mute">No alter egos yet. Add one above — e.g. "Vampire" tagged to Dating, or "CEO" tagged to Networking.</div>`}
+      </section>
     </section>
   `;
 
-  // Top-level identity wiring
+  // Identity wiring
   $('#f-name', root).addEventListener('input',  e => store.setProfile({ name:  e.target.value || 'You' }));
   $('#f-alias', root).addEventListener('input', e => store.setProfile({ alias: e.target.value || 'you' }));
   $('#f-gate', root).addEventListener('input',  e => store.setProfile({ visMatchGate: Number(e.target.value) }));
   $('#f-optin', root).addEventListener('click', () => { store.setProfile({ optIn: !store.profile.optIn }); render(root); });
 
-  // Mode enable / disable
-  $$('button[data-toggle-mode-enabled]', root).forEach(b => b.addEventListener('click', () => {
-    const m = b.dataset.toggleModeEnabled;
-    store.setEnabled(m, !store.profile[m].enabled);
+  // Add alter ego
+  $('#add-alter-go', root)?.addEventListener('click', () => {
+    const m = $('#add-alter-mode', root).value;
+    const name = $('#add-alter-name', root).value.trim() || 'New alter ego';
+    const created = store.addPersona(m, name, 'custom');
+    if (created) {
+      store.setUI('profile', { editingAlterEgo: created.id });
+    }
+    render(root);
+  });
+
+  // Pick (highlight) alter ego in the list — sets which one is being edited
+  $$('button[data-pick-alter]', root).forEach(b => b.addEventListener('click', () => {
+    store.setUI('profile', { editingAlterEgo: b.dataset.pickAlter });
     render(root);
   }));
 
-  // Add persona via preset selector
-  $$('select[data-add-preset]', root).forEach(sel => sel.addEventListener('change', e => {
-    const presetKey = e.target.value;
-    if (!presetKey) return;
-    const m = sel.dataset.addPreset;
-    const preset = PERSONA_PRESETS.find(p => p.key === presetKey);
-    store.addPersona(m, preset?.label || 'New persona', presetKey);
+  // Activate / duplicate / delete
+  $$('button[data-activate-persona]', root).forEach(b => b.addEventListener('click', () => {
+    store.pickAlterEgo(b.dataset.mode, b.dataset.activatePersona);
+    render(root);
+  }));
+  $$('button[data-duplicate-persona]', root).forEach(b => b.addEventListener('click', () => {
+    const cp = store.duplicatePersona(b.dataset.mode, b.dataset.duplicatePersona);
+    if (cp) store.setUI('profile', { editingAlterEgo: cp.id });
+    render(root);
+  }));
+  $$('button[data-delete-persona]', root).forEach(b => b.addEventListener('click', () => {
+    if (!confirm('Delete this alter ego?')) return;
+    store.deletePersona(b.dataset.mode, b.dataset.deletePersona);
+    store.setUI('profile', { editingAlterEgo: null });
     render(root);
   }));
 
-  // Pick a persona (make active)
-  $$('button[data-pick-persona]', root).forEach(b => b.addEventListener('click', () => {
-    store.setActivePersona(b.dataset.mode, b.dataset.pickPersona);
-    render(root);
-  }));
-
-  // Persona name
+  // Field wiring (works for default-self editors AND alter-ego editor)
   $$('input[data-persona-name]', root).forEach(inp => inp.addEventListener('input', e => {
     store.updatePersona(inp.dataset.mode, inp.dataset.personaName, { name: e.target.value });
   }));
-
-  // Persona preset → applies overlay
+  $$('input[data-persona-roleplay]', root).forEach(inp => inp.addEventListener('input', e => {
+    store.updatePersona(inp.dataset.mode, inp.dataset.personaRoleplay, { roleplay: e.target.value });
+  }));
   $$('select[data-persona-preset]', root).forEach(sel => sel.addEventListener('change', e => {
     store.applyPersonaPreset(sel.dataset.mode, sel.dataset.personaPreset, e.target.value);
     render(root);
   }));
-
-  // Status / visMode
   $$('select[data-persona-status]', root).forEach(sel => sel.addEventListener('change', e => {
     store.updatePersona(sel.dataset.mode, sel.dataset.personaStatus, { status: e.target.value });
     render(root);
@@ -253,15 +331,19 @@ export function render(root) {
     store.updatePersona(sel.dataset.mode, sel.dataset.personaVismode, { visMode: e.target.value });
     render(root);
   }));
-
-  // Avatar
+  $$('select[data-persona-mode]', root).forEach(sel => sel.addEventListener('change', e => {
+    const fromMode = sel.dataset.mode;
+    const toMode   = e.target.value;
+    const personaId = sel.dataset.personaMode;
+    if (fromMode === toMode) return;
+    store.movePersona(fromMode, personaId, toMode);
+    render(root);
+  }));
   $$('button[data-set-avatar]', root).forEach(b => b.addEventListener('click', () => {
     const av = JSON.parse(b.dataset.setAvatar);
     store.updatePersona(b.dataset.mode, b.dataset.persona, { avatar: av });
     render(root);
   }));
-
-  // Gender (dating only)
   $$('button[data-persona-gender]', root).forEach(b => b.addEventListener('click', () => {
     const block = store.profile[b.dataset.mode];
     const persona = block.personas.find(p => p.id === b.dataset.personaGender);
@@ -269,28 +351,11 @@ export function render(root) {
     store.updatePersona(b.dataset.mode, persona.id, { self: { ...persona.self, gender: b.dataset.gender } });
     render(root);
   }));
-
-  // Self-description fields
   $$('select[data-self]', root).forEach(s => s.addEventListener('change', e => {
-    const block = store.profile[s.dataset.scope];
+    const block = store.profile[s.dataset.mode];
     const persona = block.personas.find(p => p.id === s.dataset.persona);
     if (!persona) return;
-    store.updatePersona(s.dataset.scope, persona.id, { self: { ...persona.self, [s.dataset.self]: e.target.value } });
-  }));
-
-  // Duplicate / delete
-  $$('button[data-duplicate-persona]', root).forEach(b => b.addEventListener('click', () => {
-    store.duplicatePersona(b.dataset.mode, b.dataset.duplicatePersona);
-    render(root);
-  }));
-  $$('button[data-delete-persona]', root).forEach(b => b.addEventListener('click', () => {
-    if (store.profile[b.dataset.mode].personas.length <= 1) {
-      alert('Each mode keeps at least one alter ego. Add another first, then delete.');
-      return;
-    }
-    if (!confirm('Delete this alter ego?')) return;
-    store.deletePersona(b.dataset.mode, b.dataset.deletePersona);
-    render(root);
+    store.updatePersona(s.dataset.mode, persona.id, { self: { ...persona.self, [s.dataset.self]: e.target.value } });
   }));
 
   $('#reset', root).addEventListener('click', () => {

@@ -31,6 +31,7 @@ function ensurePersonaShape(p, fallback) {
     name: p.name || fallback.name,
     avatar: p.avatar || fallback.avatar,
     preset: p.preset || fallback.preset || 'custom',
+    roleplay: typeof p.roleplay === 'string' ? p.roleplay : (fallback.roleplay || ''),
     status: p.status || fallback.status,
     visMode: p.visMode || fallback.visMode,
     self: { ...fallback.self, ...(p.self || {}) },
@@ -202,11 +203,37 @@ class Store {
     this.save();
   }
   cyclePersona(direction = 1) {
-    const block = this.s.profile[this.mode];
-    if (!block || block.personas.length <= 1) return;
-    const i = Math.max(0, block.personas.findIndex(p => p.id === block.activePersonaId));
-    const next = block.personas[(i + direction + block.personas.length) % block.personas.length];
-    this.setActivePersona(this.mode, next.id);
+    const flat = this.allPersonas();
+    if (flat.length <= 1) return;
+    const i = flat.findIndex(x => x.mode === this.mode && x.persona.id === this.activePersonaId());
+    const j = (i + direction + flat.length) % flat.length;
+    this.pickAlterEgo(flat[j].mode, flat[j].persona.id);
+  }
+
+  activePersonaId() {
+    return this.s.profile[this.mode]?.activePersonaId;
+  }
+
+  // Flat list of all alter egos across both modes — what the dropdown shows.
+  allPersonas() {
+    const out = [];
+    for (const m of ['dating', 'networking']) {
+      const block = this.s.profile[m];
+      if (!block?.personas) continue;
+      for (const persona of block.personas) out.push({ mode: m, persona });
+    }
+    return out;
+  }
+
+  // Switch to a specific (mode, persona) — used by the dropdown.
+  pickAlterEgo(modeKey, personaId) {
+    const block = this.s.profile[modeKey];
+    if (!block) return;
+    if (!block.personas.some(p => p.id === personaId)) return;
+    if (!block.enabled) block.enabled = true;
+    block.activePersonaId = personaId;
+    this.s.profile.mode = modeKey;
+    this.save();
   }
 
   addPersona(modeKey, name, presetKey = 'custom') {
@@ -257,6 +284,22 @@ class Store {
       prefs: { ...cur.prefs, ...(patch.prefs || {}) },
       privacyOverrides: patch.privacyOverrides ? { ...patch.privacyOverrides } : cur.privacyOverrides
     };
+    this.save();
+  }
+
+  movePersona(fromMode, personaId, toMode) {
+    if (fromMode === toMode) return;
+    const src = this.s.profile[fromMode];
+    const dst = this.s.profile[toMode];
+    if (!src || !dst) return;
+    const i = src.personas.findIndex(p => p.id === personaId);
+    if (i < 0) return;
+    if (src.personas.length <= 1) return; // keep at least one in the source mode
+    const [persona] = src.personas.splice(i, 1);
+    dst.personas.push(persona);
+    if (src.activePersonaId === personaId) src.activePersonaId = src.personas[0].id;
+    dst.activePersonaId = persona.id;
+    this.s.profile.mode = toMode;
     this.save();
   }
 
