@@ -17,6 +17,7 @@ const blank = () => ({
   rapport: {},
   reveals: {},
   muted: {},
+  ui: {},
   log: [],
   meta: { ticks: 0, lastTick: Date.now() }
 });
@@ -25,13 +26,13 @@ function migrate(s) {
   if (!s || typeof s !== 'object') return blank();
   const base = blank();
   const merged = { ...base, ...s, profile: { ...base.profile, ...(s.profile || {}) } };
-  // Ensure privacy matrix + temp exist on the profile.
   const p = merged.profile;
   p.privacy = p.privacy || {};
   p.privacy.matrix = { ...defaultMatrix(), ...(p.privacy.matrix || {}) };
   p.privacy.temp   = p.privacy.temp || {};
   if (typeof p.privacy.hideFromMatchBelow !== 'number') p.privacy.hideFromMatchBelow = 0.25;
   if (!p.privacy.allowSignal) p.privacy.allowSignal = 'ble';
+  merged.ui = merged.ui || {};
   return merged;
 }
 
@@ -51,15 +52,26 @@ class Store {
   get rapport() { return this.s.rapport; }
   get reveals() { return this.s.reveals; }
   get muted()   { return this.s.muted; }
+  get ui()      { return this.s.ui ||= {}; }
   get log()     { return this.s.log; }
   setProfile(patch) { this.s.profile = { ...this.s.profile, ...patch }; this.save(); }
+
+  // Cross-route UI state (active tab, last filter, last sort, etc.)
+  setUI(key, patch) {
+    this.s.ui = this.s.ui || {};
+    const cur = this.s.ui[key] || {};
+    this.s.ui[key] = { ...cur, ...patch };
+    this.save();
+  }
+  getUI(key, fallback = {}) {
+    return { ...fallback, ...((this.s.ui && this.s.ui[key]) || {}) };
+  }
 
   // Privacy matrix helpers ---------------------------------------------------
   setPrivacyAxis(axis, tier) {
     const p = this.s.profile;
     p.privacy = p.privacy || {};
     p.privacy.matrix = { ...(p.privacy.matrix || defaultMatrix()), [axis]: tier };
-    // Setting the persistent tier clears any active temp override on this axis.
     if (p.privacy.temp?.[axis]) { delete p.privacy.temp[axis]; }
     this.save();
   }
@@ -82,7 +94,7 @@ class Store {
     const p = this.s.profile;
     p.privacy = p.privacy || {};
     p.privacy.matrix = { ...defaultMatrix(), ...preset.matrix };
-    p.privacy.temp = {}; // presets clear time-bound overrides
+    p.privacy.temp = {};
     this.save();
   }
   resetPrivacyMatrix() {
@@ -136,7 +148,6 @@ class Store {
     let dirty = this._expireTemps();
 
     Object.entries(w).forEach(([id, p]) => {
-      // 2D drift with reflection inside the ~12m venue square.
       p.x += p.vx; p.y += p.vy;
       if (Math.abs(p.x) > 12) p.vx *= -1;
       if (Math.abs(p.y) > 12) p.vy *= -1;
@@ -158,9 +169,8 @@ class Store {
           zoneKey: cls.zone.key,
           matchPct: sc.pct,
           viewerReveal: !!reveals[id],
-          subjectReveal: !!reveals[id], // sample seeds inherit user reveal flag for simulation
+          subjectReveal: !!reveals[id],
         };
-        // Subject's matrix decides whether rapport is allowed to accrue with viewer (me).
         const allowAccrue = canSee(me, seed || { id }, 'countRapportWith', ctx);
         if (allowAccrue) {
           const gain = accrualPerTick({
