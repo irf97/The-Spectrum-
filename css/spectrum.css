@@ -220,6 +220,9 @@ a { color: inherit; }
   box-shadow: 0 0 0 0 transparent, 0 4px 16px -8px var(--iris);
 }
 
+#nav { scrollbar-width: none; -ms-overflow-style: none; }
+#nav::-webkit-scrollbar { display: none; }
+
 @media (max-width: 640px) {
   #nav {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);

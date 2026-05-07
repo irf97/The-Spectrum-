@@ -44,42 +44,15 @@ function currentTheme() {
 function setTheme(key) {
   store.setUI('theme', { key });
   applyTheme(key);
-  paintThemeCycle();
 }
 applyTheme(currentTheme());
 
-// Header palette button -------------------------------------------------------
-
-function paintThemeCycle() {
-  const host = $('#status-pill');
-  if (!host) return;
-  // Status pill is repainted by paintPill() below; nothing to do here.
-}
-function wireThemeButton() {
-  const btn = document.createElement('button');
-  btn.id = 'theme-cycle';
-  btn.className = 'theme-cycle ml-2';
-  btn.title = 'Cycle theme (T)';
-  btn.addEventListener('click', cycleTheme);
-  const headerNav = $('header > div');
-  if (headerNav) headerNav.appendChild(btn);
-  paintThemePalette();
-}
-function paintThemePalette() {
-  const btn = $('#theme-cycle');
-  if (!btn) return;
-  const t = THEMES.find(x => x.key === currentTheme()) || THEMES[0];
-  btn.innerHTML = `<span class="palette-dots">${t.swatches.map(s => `<span style="background:${s}"></span>`).join('')}</span><span>${t.label}</span>`;
-}
 function cycleTheme() {
   const cur = currentTheme();
   const i = THEMES.findIndex(t => t.key === cur);
   const next = THEMES[(i + 1) % THEMES.length];
   setTheme(next.key);
-  paintThemePalette();
 }
-wireThemeButton();
-bus.on('state:changed', paintThemePalette);
 
 // ----- Status pill ----------------------------------------------------------
 
@@ -102,6 +75,9 @@ function paintPill() {
 }
 paintPill();
 bus.on('state:changed', paintPill);
+
+const statusPill = $('#status-pill');
+if (statusPill) statusPill.addEventListener('click', () => { location.hash = '#/status'; });
 
 // ----- Hotkeys --------------------------------------------------------------
 
