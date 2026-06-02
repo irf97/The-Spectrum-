@@ -10,6 +10,7 @@ import * as Alignment from './alignment.js';
 import * as Layer3    from './layer3.js';
 import * as Layer4    from './layer4.js';
 import * as Layer5    from './layer5.js';
+import * as Societies from './societies.js';
 import * as Profile   from './profile.js';
 import * as Privacy   from './privacy.js';
 import * as Theme     from './theme.js';
@@ -22,6 +23,7 @@ defineRoute({ path: '/alignment', name:'alignment', label:'Alignment', icon:'◆
 defineRoute({ path: '/proximity', name:'prox',      label:'Proximity', icon:'③', render: Layer3.render });
 defineRoute({ path: '/identity',  name:'identity',  label:'Identity',  icon:'④', render: Layer4.render });
 defineRoute({ path: '/rapport',   name:'rapport',   label:'Rapport',   icon:'⑤', render: Layer5.render });
+defineRoute({ path: '/societies', name:'societies', label:'Societies', icon:'❖', render: Societies.render });
 defineRoute({ path: '/profile',   name:'profile',   label:'Profile',   icon:'◉', render: Profile.render });
 defineRoute({ path: '/privacy',   name:'privacy',   label:'Privacy',   icon:'🔒', render: Privacy.render });
 defineRoute({ path: '/theme',     name:'theme',     label:'Theme',     icon:'🎨', render: Theme.render });
@@ -87,6 +89,34 @@ function paintPersonaPill() {
 }
 paintPersonaPill();
 bus.on('state:changed', paintPersonaPill);
+
+// Phase 5 — global override pill ("go private"). Always visible in the
+// persistent header so every screen has a one-action kill-path. Maps to
+// the Override/Escalation kernel primitive. Per-target overrides (mute,
+// reveal-cancel) remain on the people pages.
+function paintOverridePill() {
+  const me = store.profile;
+  const pill = $('#override-pill');
+  if (!pill) return;
+  if (me.optIn) {
+    pill.textContent = '🌐 Discoverable';
+    pill.style.borderColor = 'color-mix(in srgb, var(--mint) 50%, transparent)';
+    pill.style.color       = 'var(--mint)';
+    pill.style.background  = 'color-mix(in srgb, var(--mint) 10%, transparent)';
+    pill.title = 'You are discoverable. Click to go private — kill-path, one action.';
+  } else {
+    pill.textContent = '🔒 Private';
+    pill.style.borderColor = 'color-mix(in srgb, var(--rose) 50%, transparent)';
+    pill.style.color       = 'var(--rose)';
+    pill.style.background  = 'color-mix(in srgb, var(--rose) 10%, transparent)';
+    pill.title = 'You are private. Click to become discoverable again.';
+  }
+}
+paintOverridePill();
+bus.on('state:changed', paintOverridePill);
+$('#override-pill')?.addEventListener('click', () => {
+  store.setProfile({ optIn: !store.profile.optIn });
+});
 
 let popoverEl = null;
 function closeAlterEgoMenu() {

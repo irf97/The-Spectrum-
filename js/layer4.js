@@ -70,9 +70,9 @@ function reveal(p, viewer, opts, viewerDatingPersona) {
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="font-medium">${label}</span>
-          <span class="pill" style="color:${r.bucket.swatch};border-color:${r.bucket.swatch}55">${r.bucket.label} · ${pct(r.pct)}</span>
+          <span class="pill" title="Your private preference-fit on your own search — not a label about this person." style="color:${r.bucket.swatch};border-color:${r.bucket.swatch}55">your fit: ${r.bucket.label} · ${pct(r.pct)}</span>
           <span class="pill pill-iris">${VIS_MODES.find(m=>m.key===view.modeKey)?.label || view.modeKey}</span>
-          ${view.gated   ? raw('<span class="pill pill-rose">gated</span>') : ''}
+          ${view.gated   ? raw('<span class="pill pill-rose" title="Your self-simplify filter pulled this view down to avatar.">self-simplified</span>') : ''}
           ${view.mutual  ? raw('<span class="pill pill-mint">mutual</span>') : ''}
         </div>
         <div class="text-[11px] text-themed-mute mt-1">${view.reasons.join(' · ') || 'normal visibility'}</div>
@@ -119,13 +119,13 @@ export function render(root) {
       <div class="grid lg:grid-cols-5 gap-6">
         <aside class="lg:col-span-2 grid gap-3">
           <div class="card p-4 grid gap-3">
-            <h2 class="font-display font-semibold text-lg">Reveal gate</h2>
+            <h2 class="font-display font-semibold text-lg">Self-simplify filter</h2>
             <div class="flex items-center justify-between">
-              <span class="text-sm text-themed-soft">Show richer than avatar at match ≥</span>
+              <span class="text-sm text-themed-soft">Keep my own surface at avatar when my fit &lt; </span>
               <span class="font-display font-semibold" id="gate-val">${Math.round(me.visMatchGate*100)}%</span>
             </div>
             <input id="gate" type="range" min="0" max="1" step="0.05" value="${me.visMatchGate}" />
-            <p class="text-[11px] text-themed-mute">Higher gate → more "look around the room" energy. Below the gate, people see your avatar / alias only.</p>
+            <p class="text-[11px] text-themed-mute">Encourages looking around the room. This pulls your own view DOWN; it does not gate what others see of you, or you of them.</p>
           </div>
 
           <div class="card p-4 grid gap-3">
@@ -159,8 +159,20 @@ export function render(root) {
             <div class="grid gap-2">${REVEAL_CHANNELS.map(c => channelRow(c, identity)).join('')}</div>
           </div>
 
+          <div class="card p-4 grid gap-2">
+            <h2 class="font-display font-semibold text-lg">How reveal works</h2>
+            <ul class="text-xs text-themed-soft grid gap-1 list-disc pl-4">
+              <li>Both people must flag each other for reveal — this is the only path to a revealed view.</li>
+              <li>Match percentage does not unlock visibility. The subject's mode is the upper bound; the handshake is the unlock.</li>
+              <li>Reveal grants auto-expire after a TTL (~5 min in this build). Re-flag to renew.</li>
+              <li>Status must allow it (e.g. not Closed / Resetting).</li>
+              <li>Mute always wins. Either side can leave at any time.</li>
+            </ul>
+          </div>
+
           <div class="card p-4 grid gap-3">
-            <h2 class="font-display font-semibold text-lg">What others see (simulated)</h2>
+            <h2 class="font-display font-semibold text-lg">How your settings shape your own view</h2>
+            <p class="text-[11px] text-themed-mute">A simulation of what your surface would look like for these people under your current mode and self-simplify filter. Other-side reveal is simulated true so you can see the mutual case; the real handshake still requires both real flags.</p>
             ${SAMPLE_PEOPLE.slice(0,8).map(p => reveal(p, me, { ...opts, theirReveal: !!reveals[p.id], muted: !!muted[p.id] }, datingPersona)).join('')}
           </div>
 
@@ -179,8 +191,13 @@ export function render(root) {
     render(root);
   }));
   $('#gate', root).addEventListener('input', (e) => {
-    store.setProfile({ visMatchGate: Number(e.target.value) });
+    // Only update the displayed % during drag — re-rendering on every input
+    // event destroys drag focus. Persist + re-render happens on `change`.
     $('#gate-val', root).textContent = `${Math.round(e.target.value*100)}%`;
+  });
+  $('#gate', root).addEventListener('change', (e) => {
+    store.setProfile({ visMatchGate: Number(e.target.value) });
+    render(root);
   });
   $('#glance-blur', root).addEventListener('input', (e) => {
     const cur = store.profile.identity || {};

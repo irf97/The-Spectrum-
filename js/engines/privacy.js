@@ -40,10 +40,14 @@ export function canSee(viewer, subject, axis, ctx = {}) {
   switch (tier) {
     case 'nobody':         return false;
     case 'reveal_mutual':  return !!(ctx.viewerReveal && ctx.subjectReveal);
-    case 'match_gated': {
-      const gate = subject?.visMatchGate ?? 0.5;
-      return (ctx.matchPct ?? 0) >= gate;
-    }
+    // Phase 5 dignity reconciliation — the 'match_gated' tier is removed.
+    // Visibility may not be gated by a desirability score (Living Mesh §11:
+    // "the harmful model is score equals access"). Any persisted state still
+    // referencing 'match_gated' is treated as 'reveal_mutual' — the safe
+    // migration (stronger consent, not access-by-score). The data.js
+    // catalog has been updated to default to reveal_mutual; the v6 store
+    // migration normalises any legacy values.
+    case 'match_gated':    return !!(ctx.viewerReveal && ctx.subjectReveal);
     case 'same_room':      return ['reach','nearby','room'].includes(ctx.zoneKey);
     case 'anyone':         return true;
     default:               return false;

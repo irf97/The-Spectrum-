@@ -5,14 +5,20 @@ import { SAMPLE_PEOPLE, STATUS_DATING, STATUS_NETWORKING, PHYSICAL_FIELDS, MATCH
 import { scoreCandidate } from './engines/match.js';
 import { alignmentCandidate } from './engines/alignment.js';
 import { classify } from './engines/proximity.js';
-import { resolveView } from './engines/identity.js';
+import { resolveView, revealGrantRemainingMs } from './engines/identity.js';
 import { progress, MANUAL_DELTAS } from './engines/rapport.js';
 import { relate, hobbyMeta, rankFor } from './engines/hobbies.js';
 import { canSee, effectiveTier, tierMeta, axisMeta } from './engines/privacy.js';
-import { store } from './state.js';
-import { $, $$, escapeHtml, initials, colorFor, pct, fmtRel, fmtMin } from './util.js';
+import { store, REACHING_WINDOW_MS } from './state.js';
+import { $, $$, escapeHtml, initials, colorFor, pct, fmtRel, fmtMin, bus } from './util.js';
+
+// Module-scope tick subscription so the reveal-grant TTL countdown and the
+// rapport reaching/decaying pill stay live without a full re-render (which
+// would steal focus from inputs and re-bind every listener every second).
+let unsubTick = null;
 
 export function render(root, params) {
+  if (unsubTick) { unsubTick(); unsubTick = null; }
   const id = params.id;
   const p = SAMPLE_PEOPLE.find(x => x.id === id);
   if (!p) {
@@ -44,6 +50,7 @@ export function render(root, params) {
   const view = resolveView(me, p, primaryPct, { reveals: store.reveals, theirReveal: revealed, muted, zoneKey: cls.zone.key });
   const rel = relate(me.hobbies, p.hobbies);
   const pr = progress(rapport.points || 0);
+  const reaching = rapport.lastReachingTs && (Date.now() - rapport.lastReachingTs) < REACHING_WINDOW_MS;
   const pIsDating     = !!p.modes?.dating;
   const pIsNetworking = !!p.modes?.networking;
   const datingStatus     = STATUS_DATING.find(s => s.key === p.status);
@@ -74,8 +81,8 @@ export function render(root, params) {
           <h1 class="font-display text-2xl font-semibold">${headerLabel}</h1>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${escapeHtml(cls.zone.label)} · ${(w.dist||0).toFixed(1)}m</span>
-            ${datingShared ? `<span class="pill" title="Match" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">♥ ${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>` : ''}
-            ${networkingShared ? `<span class="pill" title="Alignment" style="color:${al.bucket.swatch};border-color:${al.bucket.swatch}55">◆ ${escapeHtml(al.bucket.label)} · ${pct(al.pct)}</span>` : ''}
+            ${datingShared ? `<span class="pill" title="Your private preference-fit on your own search — not a label about this person." style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">♥ your fit: ${escapeHtml(sc.bucket.label)} · ${pct(sc.pct)}</span>` : ''}
+            ${networkingShared ? `<span class="pill" title="Your private preference-fit on your own search — not a label about this person." style="color:${al.bucket.swatch};border-color:${al.bucket.swatch}55">◆ your fit: ${escapeHtml(al.bucket.label)} · ${pct(al.pct)}</span>` : ''}
             ${showsStatus && pIsDating && datingStatus ? `<span class="pill pill-rose">${escapeHtml(datingStatus.icon)} dating · ${escapeHtml(datingStatus.label)}</span>` : ''}
             ${showsStatus && pIsNetworking && networkingStatus ? `<span class="pill pill-mint">${escapeHtml(networkingStatus.icon)} net · ${escapeHtml(networkingStatus.label)}</span>` : ''}
             <span class="pill" style="color:${pr.tier.color};border-color:${pr.tier.color}55">${escapeHtml(pr.tier.label)}</span>
@@ -100,6 +107,12 @@ export function render(root, params) {
               <span class="text-themed-mute">${Math.round(rapport.points)} pts ${pr.next?` · ${Math.round(pr.into)}/${Math.round(pr.span)} → ${pr.next.label}`:''}</span>
             </div>
             <div class="bar rep tall"><i style="width:${(pr.progress*100).toFixed(0)}%;background:${pr.tier.color}"></i></div>
+            <div class="flex items-center justify-between text-[11px] text-themed-mute" id="reaching-state">
+              <span>${rapport.lastReachingTs ? `last reached ${escapeHtml(fmtRel(rapport.lastReachingTs))}` : 'not yet reached'}</span>
+              ${reaching
+                ? '<span class="pill pill-mint" title="Within the reaching window — rapport is holding">holding</span>'
+                : '<span class="pill" style="color:var(--mute);border-color:var(--mute)55" title="Outside the reaching window — rapport is decaying back toward 0">decaying toward 0</span>'}
+            </div>
           </div>
           <div class="flex flex-wrap gap-1.5">
             ${MANUAL_DELTAS.map(d => `<button class="btn btn-sm ${d.delta>0?'btn-mint':'btn-rose'}" data-rate="${d.delta}">${d.delta>0?'+':''}${d.delta} · ${escapeHtml(d.label)}</button>`).join('')}
@@ -123,7 +136,7 @@ export function render(root, params) {
               <div class="card-soft p-2 text-xs flex items-center justify-between">
                 <span>${escapeHtml(n.note)}</span>
                 <span style="color:var(${n.delta>0?'--mint':'--rose'})">${n.delta>0?'+':''}${Math.round(n.delta)} · ${fmtRel(n.ts)}</span>
-              </div>`).join('') || '<div class="text-xs text-themed-mute">No notes yet — proximity time will quietly accrue (subject to their privacy).</div>'}
+              </div>`).join('') || '<div class="text-xs text-themed-mute">No notes yet — log a session or leave a rating to begin reaching.</div>'}
           </div>
         </div>
 
@@ -155,7 +168,8 @@ export function render(root, params) {
 
         ${datingShared ? `
         <div class="card p-4 grid gap-3 lg:col-span-2">
-          <h2 class="font-display font-semibold text-lg">♥ Match dimensions <span class="text-xs text-themed-mute font-normal">(dating)</span></h2>
+          <h2 class="font-display font-semibold text-lg">♥ Your filter, applied <span class="text-xs text-themed-mute font-normal">(dating)</span></h2>
+          <p class="text-[11px] text-themed-mute">Per-dimension breakdown of your own preference vector against this person's stated traits. Lives on your device.</p>
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             ${sc.dimensions.map(d => `
               <div class="card-soft p-3 grid gap-1.5">
@@ -163,7 +177,7 @@ export function render(root, params) {
                   <div class="font-medium text-sm">${escapeHtml(d.label)}</div>
                   <div class="text-xs text-themed-mute">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
                 </div>
-                <div class="text-[11px] text-themed-mute">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
+                <div class="text-[11px] text-themed-mute">your target: ${escapeHtml(d.target||'—')} · they're: ${escapeHtml(d.got||'unknown')}</div>
                 <div class="bar"><i style="width:${(d.score==null?0:d.score)*100}%"></i></div>
               </div>`).join('')}
           </div>
@@ -181,7 +195,7 @@ export function render(root, params) {
                   <div class="font-medium text-sm">${escapeHtml(d.label)}</div>
                   <div class="text-xs text-themed-mute">${d.score == null ? '—' : `${(d.score*100|0)}%`}</div>
                 </div>
-                <div class="text-[11px] text-themed-mute">target: ${escapeHtml(d.target||'—')} · got: ${escapeHtml(d.got||'unknown')}</div>
+                <div class="text-[11px] text-themed-mute">your target: ${escapeHtml(d.target||'—')} · they're: ${escapeHtml(d.got||'unknown')}</div>
                 <div class="bar"><i style="width:${(d.score==null?0:d.score)*100}%"></i></div>
               </div>`).join('')}
           </div>
@@ -204,8 +218,14 @@ export function render(root, params) {
           <h2 class="font-display font-semibold text-lg">Identity & privacy</h2>
           <div class="grid gap-1.5 text-sm">
             <div class="flex justify-between"><span>Their default mode</span><span class="text-themed-soft">${escapeHtml(p.visMode)}</span></div>
-            <div class="flex justify-between"><span>Your reveal flag</span><span class="text-themed-soft">${revealed?'on':'off'}</span></div>
-            <div class="flex justify-between"><span>Your match gate</span><span class="text-themed-soft">${(me.visMatchGate*100).toFixed(0)}%</span></div>
+            <div class="flex justify-between"><span>Your reveal flag</span><span class="text-themed-soft" id="reveal-flag-state">${(() => {
+              const ts = store.reveals[p.id];
+              if (!ts) return 'off';
+              const remaining = revealGrantRemainingMs(ts);
+              const mins = Math.ceil(remaining / 60000);
+              return `on · expires in ~${mins}m`;
+            })()}</span></div>
+            <div class="flex justify-between"><span>Your self-simplify filter</span><span class="text-themed-soft" title="Below this fit %, your own view of others stays at avatar.">${(me.visMatchGate*100).toFixed(0)}%</span></div>
             <div class="flex justify-between"><span>What you currently see</span><span class="text-themed-soft font-medium">${escapeHtml(view.shows)}</span></div>
             <div class="flex justify-between"><span>Their showName tier</span><span class="text-themed-soft">${escapeHtml(tierMeta(effectiveTier(p,'showName')).label)}</span></div>
             <div class="flex justify-between"><span>Their showPhoto tier</span><span class="text-themed-soft">${escapeHtml(tierMeta(effectiveTier(p,'showPhoto')).label)}</span></div>
@@ -236,5 +256,32 @@ export function render(root, params) {
     if (!Number.isFinite(m) || m <= 0) return;
     store.logSharedSession(p.id, hk, m);
     render(root, params);
+  });
+
+  // Live observability: refresh the reveal-grant TTL countdown and the
+  // reaching/decaying pill on every tick. The store sweeps expired grants
+  // on the tick, so this also surfaces the moment a grant disappears.
+  unsubTick = bus.on('tick', () => {
+    const flagEl = $('#reveal-flag-state', root);
+    if (flagEl) {
+      const ts = store.reveals[p.id];
+      if (!ts) {
+        flagEl.textContent = 'off';
+      } else {
+        const mins = Math.ceil(revealGrantRemainingMs(ts) / 60000);
+        flagEl.textContent = `on · expires in ~${mins}m`;
+      }
+    }
+    const reachEl = $('#reaching-state', root);
+    if (reachEl) {
+      const r = store.rapport[p.id] || {};
+      const ts = r.lastReachingTs || 0;
+      const isReaching = ts && (Date.now() - ts) < REACHING_WINDOW_MS;
+      const left = ts ? `last reached ${escapeHtml(fmtRel(ts))}` : 'not yet reached';
+      const pill = isReaching
+        ? '<span class="pill pill-mint" title="Within the reaching window — rapport is holding">holding</span>'
+        : '<span class="pill" style="color:var(--mute);border-color:var(--mute)55" title="Outside the reaching window — rapport is decaying back toward 0">decaying toward 0</span>';
+      reachEl.innerHTML = `<span>${left}</span>${pill}`;
+    }
   });
 }

@@ -66,12 +66,12 @@ export const PERSONA_PRESETS = [
     networking:{ status:'focused',    visMode:'photo',  overrides:{ showOnFloor:'same_room', showName:'reveal_mutual', receiveMessages:'reveal_mutual' } } },
   { key:'weekend', label:'Weekend', icon:'🪩',
     copy:'Off-duty. Open, relaxed, social.',
-    dating:    { status:'flirty',     visMode:'hybrid', overrides:{ showOnFloor:'anyone', showName:'reveal_mutual', showPhoto:'match_gated', receiveMessages:'match_gated' } },
+    dating:    { status:'flirty',     visMode:'hybrid', overrides:{ showOnFloor:'anyone', showName:'reveal_mutual', showPhoto:'reveal_mutual', receiveMessages:'reveal_mutual' } },
     networking:{ status:'curious',    visMode:'avatar', overrides:{ showOnFloor:'same_room', showName:'reveal_mutual' } } },
   { key:'travel',  label:'Travel',  icon:'🎒',
     copy:'Just landed. Lookaround vibes; brief encounters.',
-    dating:    { status:'open',       visMode:'glance', overrides:{ showOnFloor:'same_room', showPhoto:'match_gated' } },
-    networking:{ status:'circulating',visMode:'glance', overrides:{ showOnFloor:'same_room', showName:'match_gated' } } },
+    dating:    { status:'open',       visMode:'glance', overrides:{ showOnFloor:'same_room', showPhoto:'reveal_mutual' } },
+    networking:{ status:'circulating',visMode:'glance', overrides:{ showOnFloor:'same_room', showName:'reveal_mutual' } } },
   { key:'event',   label:'Event',   icon:'🎯',
     copy:'A specific room. Discoverable, focused.',
     dating:    { status:'selective',  visMode:'photo',  overrides:{ showOnFloor:'same_room', showPhoto:'reveal_mutual' } },
@@ -253,10 +253,12 @@ export const HOBBY_ROLES = [
   { key:'peers',      label:'Looking for peers',   icon:'🤝' },
 ];
 
+// Phase 5 dignity reconciliation — the `match_gated` tier (score-equals-access)
+// has been removed from the catalog. Legacy persisted state pointing at
+// `match_gated` is normalised to `reveal_mutual` by the store migration.
 export const AUDIENCE_TIERS = [
   { key:'nobody',         label:'Nobody',        short:'×',  swatch:'#94a3b8', copy:'Nothing visible.' },
   { key:'reveal_mutual',  label:'Mutual reveal', short:'⇋',  swatch:'#9b8cff', copy:'Only after both sides flag reveal.' },
-  { key:'match_gated',    label:'Match% ≥ gate', short:'≥%', swatch:'#78f3d3', copy:'People who clear your reveal-gate match score.' },
   { key:'same_room',      label:'Same room',     short:'⌂',  swatch:'#7b6cff', copy:'Anyone within the 10m bubble.' },
   { key:'anyone',         label:'Anyone',        short:'∞',  swatch:'#ffd073', copy:'Any discoverable user.' },
 ];
@@ -265,12 +267,12 @@ export const PRIVACY_AXES = [
   { key:'showOnFloor',           label:'Appear on the floor',          group:'visibility', defaultTier:'same_room',     copy:'Be visible at all to people in the venue.' },
   { key:'showName',              label:'Share real name',              group:'visibility', defaultTier:'reveal_mutual', copy:'Otherwise you appear by alias only.' },
   { key:'showPhoto',             label:'Share photo / reveal',         group:'visibility', defaultTier:'reveal_mutual', copy:'Falls back to avatar / glance if denied.' },
-  { key:'showHobbies',           label:'Share hobbies & skills',       group:'visibility', defaultTier:'match_gated',   copy:'Drives teacher / student matching.' },
+  { key:'showHobbies',           label:'Share hobbies & skills',       group:'visibility', defaultTier:'reveal_mutual', copy:'Drives teacher / student matching.' },
   { key:'showStatus',            label:'Share status word',            group:'visibility', defaultTier:'same_room',     copy:'Open / Curious / Focused / etc.' },
   { key:'receiveMessages',       label:'Receive direct messages',      group:'inbound',    defaultTier:'reveal_mutual', copy:'Who can DM you.' },
-  { key:'receiveRevealRequests', label:'Receive reveal requests',      group:'inbound',    defaultTier:'match_gated',   copy:'Who can flag you for reveal.' },
-  { key:'countRapportWith',      label:'Accrue rapport with',          group:'rapport',    defaultTier:'same_room',     copy:'Who counts toward your rapport over time.' },
-  { key:'showOnLeaderboards',    label:'Appear on rapport leaderboards', group:'leaderboard', defaultTier:'nobody',     copy:'Reserved — leaderboards not built yet.' },
+  { key:'receiveRevealRequests', label:'Receive reveal requests',      group:'inbound',    defaultTier:'reveal_mutual', copy:'Who can flag you for reveal.' },
+  { key:'countRapportWith',      label:'Accrue rapport with',          group:'rapport',    defaultTier:'reveal_mutual', copy:'Who counts toward your rapport over time. Proximity is not consent — explicit reaching is.' },
+  { key:'showOnLeaderboards',    label:'Appear on rapport leaderboards', group:'leaderboard', defaultTier:'nobody',     copy:'There are no rapport leaderboards. Reserved for future opt-in surfaces only — never people-ranking.' },
 ];
 
 export const PRIVACY_PRESETS = [
@@ -280,11 +282,11 @@ export const PRIVACY_PRESETS = [
   }},
   { key:'networking', label:'Networking event', icon:'🤝', copy:'Open to introductions in the room.', matrix:{
     showOnFloor:'anyone', showName:'same_room', showPhoto:'same_room', showHobbies:'same_room', showStatus:'anyone',
-    receiveMessages:'same_room', receiveRevealRequests:'anyone', countRapportWith:'same_room', showOnLeaderboards:'nobody'
+    receiveMessages:'same_room', receiveRevealRequests:'anyone', countRapportWith:'reveal_mutual', showOnLeaderboards:'nobody'
   }},
   { key:'dating', label:'Dating night', icon:'💫', copy:'Avatar-first; reveal only on mutual.', matrix:{
-    showOnFloor:'same_room', showName:'reveal_mutual', showPhoto:'reveal_mutual', showHobbies:'match_gated', showStatus:'same_room',
-    receiveMessages:'reveal_mutual', receiveRevealRequests:'match_gated', countRapportWith:'same_room', showOnLeaderboards:'nobody'
+    showOnFloor:'same_room', showName:'reveal_mutual', showPhoto:'reveal_mutual', showHobbies:'reveal_mutual', showStatus:'same_room',
+    receiveMessages:'reveal_mutual', receiveRevealRequests:'reveal_mutual', countRapportWith:'reveal_mutual', showOnLeaderboards:'nobody'
   }},
   { key:'cafe', label:'Café focus', icon:'☕', copy:'Quiet presence; no inbound.', matrix:{
     showOnFloor:'same_room', showName:'nobody', showPhoto:'nobody', showHobbies:'nobody', showStatus:'nobody',
@@ -441,6 +443,69 @@ function defaultNetworkingPersona() {
 export const DEFAULT_DATING_PERSONA     = defaultDatingPersona;
 export const DEFAULT_NETWORKING_PERSONA = defaultNetworkingPersona;
 
+// ---------- Layer 5b: Societies -----------------------------------------------
+//
+// A *society* is a Living Mesh local-authority node made concrete: a place, a
+// recurring crew, a community of shared interest. The user builds standing
+// with a society by contributing to it (visiting, hosting sessions there,
+// mentoring, fulfilling its advertised needs), and that standing decays
+// toward the neutral baseline when reaching stops. Hated → Exalted as the
+// descriptive depth scale; never a gate on access. See engines/society.js.
+//
+// Each society advertises `needs` — concrete asks the membership can answer
+// (demand-based coordination, not ranking). Fulfilling a need is the
+// strongest reaching event.
+//
+// This is the canonical "augment in-person noticing" payoff for places: you
+// know who's a regular here because of what they've done here, not because
+// they happen to be physically near.
+
+export const SOCIETIES = [
+  { id:'cafe-frida', name:'Cafe Frida', kind:'place', icon:'☕',
+    copy:'A quiet third-space — coffee, deep work, weekend community board.',
+    interests:['coding','reading','writing','design'],
+    needs:[
+      { id:'cf-barista-tue', label:'Saturday barista (10–12)',  kind:'help',
+        copy:'Maja is out next Saturday morning — covering the bar for two hours.' },
+      { id:'cf-wifi-fix',    label:'Wifi router intermittent',  kind:'fix',
+        copy:'Drops every couple of hours. Owner is technical-but-busy.' },
+      { id:'cf-poster',      label:'Weekly poster design',      kind:'craft',
+        copy:'The chalkboard board needs a fresh sketch each week.' },
+    ]},
+  { id:'climbing-crew', name:'Enschede Climbing Crew', kind:'crew', icon:'🧗',
+    copy:'A loose collective at the bouldering gym — partners, projects, post-session ramen.',
+    interests:['climbing','running','yoga'],
+    needs:[
+      { id:'cc-belay-newbie', label:'Belay partner for a new climber', kind:'mentor',
+        copy:'Hira just started — wants a calm partner for top-rope evenings.' },
+      { id:'cc-trip-org',     label:'Organise a Sunday outdoor trip',  kind:'host',
+        copy:'Half the crew has been asking. Needs a willing organiser.' },
+    ]},
+  { id:'chess-pickup', name:'Tuesday Chess Pickup', kind:'pickup', icon:'♟',
+    copy:'A standing weekly meet at the corner of the library — 6pm, all levels.',
+    interests:['chess','reading'],
+    needs:[
+      { id:'tcp-host-this-week', label:'Host this Tuesday',     kind:'host',
+        copy:'Kenji is travelling — needs someone to bring the boards and run the round.' },
+      { id:'tcp-teach-novices',  label:'Teach 2 absolute beginners', kind:'mentor',
+        copy:'Two newcomers signed up last week and need a patient first walkthrough.' },
+    ]},
+  { id:'study-room', name:'University Study Room 3B', kind:'place', icon:'📚',
+    copy:'A shared overnight space during exam season. Hold only by reaching.',
+    interests:['reading','writing','languages','coding'],
+    needs:[
+      { id:'sr-tidy', label:'Reset whiteboards + check power strips at dawn', kind:'fix',
+        copy:'Currently no caretaker. Whoever does this once a week earns standing.' },
+    ]},
+  { id:'sunday-soccer', name:'Sunday Pickup Soccer', kind:'pickup', icon:'⚽',
+    copy:'10 a.m. on the small pitch behind the housing block.',
+    interests:['running','climbing'],
+    needs:[
+      { id:'ss-ref', label:'Referee this Sunday', kind:'help',
+        copy:'A neutral whistle keeps it fun — the regulars asked.' },
+    ]},
+];
+
 export const DEFAULT_PROFILE = () => ({
   id: 'me',
   name: 'You',
@@ -470,7 +535,7 @@ export const DEFAULT_PROFILE = () => ({
     temp: {}
   },
   identity: {
-    channels: { photo:'reveal_mutual', voice:'reveal_mutual', video:'reveal_mutual', handle:'match_gated', place:'reveal_mutual' },
+    channels: { photo:'reveal_mutual', voice:'reveal_mutual', video:'reveal_mutual', handle:'reveal_mutual', place:'reveal_mutual' },
     glance: { blur: 3, saturate: 0.7 },
     autoRevoke: { onStatusChange: true, onLeaveRoom: false, onMute: true },
     revealTtlKey: '2h',

@@ -4,7 +4,7 @@
 import { HOBBY_CATALOG, SKILL_RANKS, HOBBY_ROLES, REP_TIERS, SAMPLE_PEOPLE } from './data.js';
 import { tierFor, progress, summary, MANUAL_DELTAS } from './engines/rapport.js';
 import { rankFor, sharedKeys, relate, hobbyMeta } from './engines/hobbies.js';
-import { store } from './state.js';
+import { store, REACHING_WINDOW_MS } from './state.js';
 import { $, $$, escapeHtml, initials, colorFor, fmtRel } from './util.js';
 
 function tierBadge(t) {
@@ -65,14 +65,21 @@ function myHobbyRow(h, i) {
 function relationsRow(p, me, rapportRow) {
   const rel = relate(me.hobbies, p.hobbies);
   const shared = sharedKeys(me.hobbies, p.hobbies);
+  const lastTs = rapportRow.lastReachingTs || 0;
+  const reaching = lastTs && (Date.now() - lastTs) < REACHING_WINDOW_MS;
+  const statusPill = reaching
+    ? `<span class="pill pill-mint" title="Within the reaching window — rapport is holding">holding</span>`
+    : `<span class="pill" style="color:var(--mute);border-color:var(--mute)55" title="Outside the reaching window — rapport is decaying back toward the neutral floor">decaying</span>`;
   return `
     <div class="card-soft p-3 grid gap-2">
       <div class="flex items-center gap-3">
         <span class="avatar w-10 h-10" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${initials(p.name)}</span>
         <div class="flex-1 min-w-0">
           <a href="#/people/${p.id}" class="font-medium truncate">${escapeHtml(p.name)}</a>
+          <div class="text-[11px] text-themed-mute">last reached ${escapeHtml(fmtRel(lastTs))}</div>
           <div class="text-[11px] text-themed-mute">${shared.length?`Shared: ${shared.map(k=>hobbyMeta(k)?.label||k).join(', ')}`:'No shared hobbies yet'}</div>
         </div>
+        ${statusPill}
         ${rel.teacher ? `<span class="pill pill-sun" title="${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}">🎓 Teacher: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
         ${rel.student ? `<span class="pill pill-mint" title="${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}">📚 Student: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
       </div>
@@ -98,9 +105,13 @@ export function render(root) {
   const teachers = matches.filter(m => m.rel.teacher).sort((a,b) => (b.rel.teacher.strength) - (a.rel.teacher.strength));
   const students = matches.filter(m => m.rel.student).sort((a,b) => (b.rel.student.strength) - (a.rel.student.strength));
 
-  const sortedRapport = SAMPLE_PEOPLE
-    .map(p => ({ p, r: store.rapport[p.id] || { points:0, sharedSessions:0, manualNotes:[] } }))
-    .sort((a,b) => (b.r.points||0) - (a.r.points||0));
+  // Dignity invariant (Living Mesh §11): no leaderboard of people by desirability or rapport.
+  // We surface only those the user has *reached with* — sorted by recency of explicit reaching,
+  // never by points. People with no reaching history don't appear; they sit at the neutral floor.
+  const recentlyReached = SAMPLE_PEOPLE
+    .map(p => ({ p, r: store.rapport[p.id] || { points:0, sharedSessions:0, lastReachingTs:0, manualNotes:[] } }))
+    .filter(({r}) => (r.lastReachingTs || 0) > 0)
+    .sort((a,b) => (b.r.lastReachingTs||0) - (a.r.lastReachingTs||0));
 
   root.innerHTML = `
     <section class="grid gap-6">
@@ -108,7 +119,7 @@ export function render(root) {
         <div>
           <p class="h-eyebrow">Layer 5</p>
           <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Rapport & Hobbies</h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">World-of-Warcraft-style reputation tracks per individual. Earned through proximity dwell-time, shared hobby sessions, and manual ratings. Hobby skill ranks pair you with teachers or students automatically when someone is looking for one.</p>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Standing per individual, earned through real shared activity and manual rating — and decaying when there is no recent reaching. It conditions depth and suggestions, never access. The teacher/student lists are demand-based role-fit, not desirability ranking. Nobody is sorted into a leaderboard.</p>
         </div>
         <div class="flex flex-wrap gap-1.5">
           ${REP_TIERS.map(t => `<span class="pill" style="color:${t.color};border-color:${t.color}55">${t.label} · ${sum.counts[t.key]}</span>`).join('')}
@@ -120,7 +131,7 @@ export function render(root) {
       <div class="grid lg:grid-cols-2 gap-6">
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Looking for a teacher?</h2>
-          <p class="text-xs text-themed-mute">Set role to "Looking for teacher" on a hobby. Higher-ranked candidates around you surface here.</p>
+          <p class="text-xs text-themed-mute">Set role to "Looking for teacher" on a hobby. Higher-ranked candidates around you surface here — demand-based role-fit against a need you declared, not a desirability ranking.</p>
           <div class="grid gap-2">
             ${teachers.length ? teachers.slice(0,8).map(({p,rel}) => `
               <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60">
@@ -136,7 +147,7 @@ export function render(root) {
 
         <div class="card p-4 grid gap-3">
           <h2 class="font-display font-semibold text-lg">Looking to teach?</h2>
-          <p class="text-xs text-themed-mute">Set role to "Looking for student" on a hobby. Lower-ranked candidates open to learning surface here.</p>
+          <p class="text-xs text-themed-mute">Set role to "Looking for student" on a hobby. Lower-ranked candidates open to learning surface here — demand-based role-fit against a need you declared, not a desirability ranking.</p>
           <div class="grid gap-2">
             ${students.length ? students.slice(0,8).map(({p,rel}) => `
               <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60">
@@ -152,10 +163,15 @@ export function render(root) {
       </div>
 
       <div class="card p-4 grid gap-3">
-        <h2 class="font-display font-semibold text-lg">Reputation across people you've met</h2>
-        <div class="grid lg:grid-cols-2 gap-2">
-          ${sortedRapport.map(({p,r}) => relationsRow(p, me, r)).join('')}
-        </div>
+        <h2 class="font-display font-semibold text-lg">People you've recently reached with</h2>
+        <p class="text-xs text-themed-mute">Sorted by recency of explicit reaching — shared sessions and manual ratings. Not a ranking.</p>
+        ${recentlyReached.length ? `
+          <div class="grid lg:grid-cols-2 gap-2">
+            ${recentlyReached.map(({p,r}) => relationsRow(p, me, r)).join('')}
+          </div>
+        ` : `
+          <div class="text-sm text-themed-mute max-w-2xl">You haven't reached with anyone yet. Log a shared session or leave a manual rating from someone's profile, and they will appear here. Until then, your standing with everyone is the neutral baseline — which is exactly the floor.</div>
+        `}
       </div>
     </section>
 

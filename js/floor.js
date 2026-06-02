@@ -1,6 +1,8 @@
 // Live Floor — the integrated, all-layers view inside the 10m bubble.
-// Tab bar lets you switch between Floor (radial map), Shortlist (full list),
-// and Proximity (zoned). Selected tab persists across navigation via store.ui.
+// Tab bar lets you switch between Floor (radial map), Who's around (zoned list),
+// and Proximity (zoned detail). People are grouped by proximity, never ranked.
+// Look around the room, not the screen — the radar augments noticing, it does
+// not produce a leaderboard of humans.
 
 import { SAMPLE_PEOPLE, PROX_ZONES, MATCH_BUCKETS } from './data.js';
 import { scoreCandidate } from './engines/match.js';
@@ -14,18 +16,29 @@ import { store } from './state.js';
 import { $, $$, escapeHtml, initials, colorFor, pct, bus, fmtRel } from './util.js';
 
 let unsubTick = null;
+let unsubState = null;
 
 const VIEW_MODES = [
-  { key:'floor',     label:'Floor',     desc:'Radial map of the room.' },
-  { key:'shortlist', label:'Shortlist', desc:'Best matches sorted by combined score.' },
-  { key:'proximity', label:'Proximity', desc:'Grouped by 10m zone (Reach · Nearby · Room · Passing).' },
+  { key:'floor',     label:'Floor',       desc:'Radial map of the room.' },
+  { key:'around',    label:"Who's around", desc:"People in your 10m bubble, grouped by zone (no ranking)." },
+  { key:'proximity', label:'Proximity',   desc:'Zoned detail (Reach · Nearby · Room · Passing).' },
 ];
+
+const ZONE_ORDER = ['reach','nearby','room','passing'];
 
 function getViewMode() {
   const ui = store.getUI('floor', { viewMode: 'floor' });
-  return VIEW_MODES.some(v => v.key === ui.viewMode) ? ui.viewMode : 'floor';
+  // Migrate legacy 'shortlist' value to the dignity-aligned 'around' tab.
+  const v = ui.viewMode === 'shortlist' ? 'around' : ui.viewMode;
+  return VIEW_MODES.some(m => m.key === v) ? v : 'floor';
 }
 function setViewMode(v) { store.setUI('floor', { viewMode: v }); }
+
+function byName(a, b) {
+  const an = (a.p.name || a.p.alias || '').toLowerCase();
+  const bn = (b.p.name || b.p.alias || '').toLowerCase();
+  return an < bn ? -1 : an > bn ? 1 : 0;
+}
 
 function privacyCtx(p, sc, cls, reveals, muted) {
   return {
@@ -48,20 +61,19 @@ function enrich(me, world, muted, rapport, reveals, mode) {
     const datingShared     = datingActive     && !!p.modes?.dating     && !!datingPersona;
     const networkingShared = networkingActive && !!p.modes?.networking && !!networkingPersona;
     const unknownBucket = MATCH_BUCKETS.find(b => b.key === 'unknown');
+    // scoreCandidate / alignmentCandidate are used here only as the viewer's
+    // own private filter (glow ring + count summaries). They are never used to
+    // sort or rank people in any rendered list. — Living Mesh §11.
     const sc  = datingShared     ? scoreCandidate(p, datingPersona.prefs)         : { pct: 0, bucket: unknownBucket };
     const al  = networkingShared ? alignmentCandidate(p, networkingPersona.prefs) : { pct: 0, bucket: unknownBucket };
     const rel = relate(me.hobbies, p.hobbies);
     const r   = rapport[p.id] || { points:0 };
     const rp  = progress(r.points || 0);
-    const hobbyBoost = rel.headline ? 0.2 + 0.6 * rel.headline.strength : 0;
-    const proxBoost  = cls.zone.key === 'reach' ? 1.2 : cls.zone.key === 'nearby' ? 1 : cls.zone.key === 'room' ? 0.6 : cls.zone.key === 'passing' ? 0.3 : 0;
-    const repBoost   = Math.max(0, Math.min(1, r.points / 2000));
 
     const primary  = mode === 'networking' ? al : sc;
     const matchPct = mode === 'networking' ? (networkingShared ? al.pct : 0) : (datingShared ? sc.pct : 0);
-    const score = (matchPct * 0.55) + (proxBoost * 0.2) + (hobbyBoost * 0.15) + (repBoost * 0.1);
     const ctx = privacyCtx(p, primary, cls, reveals, muted);
-    return { p, w, cls, sc, al, primary, matchPct, datingShared, networkingShared, rel, r, rp, score, ctx };
+    return { p, w, cls, sc, al, primary, matchPct, datingShared, networkingShared, rel, r, rp, ctx };
   });
 }
 
@@ -73,6 +85,8 @@ function visibleRows(me, all, mode) {
     .filter(x => mode === 'dating' ? x.datingShared : x.networkingShared)
     .filter(x => canSee(me, x.p, 'showOnFloor', x.ctx))
     .filter(x => {
+      // Viewer's own self-filter on their own surface — shaping their own
+      // room is allowed; only the ranking of people is forbidden.
       if ((status === 'selective' || status === 'focused') && x.matchPct < 0.5) return false;
       return true;
     });
@@ -89,6 +103,16 @@ function summaryStats(visible) {
   return { buckets, strong, ideal };
 }
 
+function groupByZone(visible) {
+  const groups = {};
+  for (const zk of ZONE_ORDER) groups[zk] = [];
+  for (const x of visible) {
+    if (groups[x.cls.zone.key]) groups[x.cls.zone.key].push(x);
+  }
+  for (const zk of ZONE_ORDER) groups[zk].sort(byName);
+  return groups;
+}
+
 // ----- View: Floor (radial) --------------------------------------------------
 
 function dotFor(me, x) {
@@ -99,6 +123,8 @@ function dotFor(me, x) {
   const showsName = (view.shows === 'photo' || view.shows === 'reveal') && canSee(me, p, 'showName', ctx);
   const left = ((w.x||0) + 12) / 24 * 92 + 4;
   const top  = ((w.y||0) + 12) / 24 * 92 + 4;
+  // Glow ring on the viewer's own dot is the viewer's private filter cue on
+  // their own surface (local-first). It is not a label broadcast about p.
   const matchClass = primary.bucket.key === 'ideal' ? 'match-ideal'
                   : primary.bucket.key === 'strong' ? 'match-strong'
                   : primary.bucket.key === 'moderate' ? 'match-moderate' : '';
@@ -113,7 +139,7 @@ function dotFor(me, x) {
   return `
     <a href="#/people/${p.id}"
        class="person ${matchClass} ${muteClass}"
-       title="${escapeHtml(labelTxt)} · ${cls.zone.label} · ${primary.bucket.label}"
+       title="${escapeHtml(labelTxt)} · ${cls.zone.label}"
        style="left:${left}%;top:${top}%;background:${bg};${filter}">${escapeHtml(label)}</a>`;
 }
 
@@ -122,15 +148,16 @@ function rings() {
   return sizes.map(s => `<span class="ring" style="width:${s}%;height:${s}%"></span>`).join('');
 }
 
-function shortRow(me, x) {
-  const { p, sc, al, datingShared, networkingShared, cls, rel, r, rp, score, ctx } = x;
+function personRow(me, x) {
+  const { p, sc, al, datingShared, networkingShared, cls, rel, r, rp, primary, ctx } = x;
   const showsName = canSee(me, p, 'showName', ctx);
   const showsHobbies = canSee(me, p, 'showHobbies', ctx);
-  const datingPill = datingShared
-    ? `<span class="pill" title="Match" style="color:${sc.bucket.swatch};border-color:${sc.bucket.swatch}55">♥ ${pct(sc.pct)}</span>`
-    : '';
-  const alignPill = networkingShared
-    ? `<span class="pill" title="Alignment" style="color:${al.bucket.swatch};border-color:${al.bucket.swatch}55">◆ ${pct(al.pct)}</span>`
+  // "Your fit" pill = the viewer's own private filter bucket, framed as
+  // private. It is not a label broadcast about the person; it is the viewer
+  // telling themselves how the room currently reads to them.
+  const fitBucket = primary.bucket;
+  const fitPill = (datingShared || networkingShared) && fitBucket.key !== 'unknown'
+    ? `<span class="pill" title="Your fit (private)" style="color:${fitBucket.swatch};border-color:${fitBucket.swatch}55">your fit · ${escapeHtml(fitBucket.label)}</span>`
     : '';
   return `
     <a href="#/people/${p.id}" class="card-soft p-3 grid gap-1.5 hover:border-iris-500/60">
@@ -138,27 +165,42 @@ function shortRow(me, x) {
         <span class="avatar w-10 h-10" style="background:linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${showsName ? initials(p.name) : (p.alias||'').slice(0,2).toUpperCase()}</span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-medium truncate">${escapeHtml(showsName ? p.name : '@'+p.alias)}</span>
-            <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${cls.zone.label}</span>
-            ${datingPill}
-            ${alignPill}
+            <span class="font-medium truncate text-themed">${escapeHtml(showsName ? p.name : '@'+p.alias)}</span>
+            <span class="pill" style="color:${cls.zone.color};border-color:${cls.zone.color}55">${escapeHtml(cls.zone.label)}</span>
+            ${fitPill}
             ${showsHobbies && rel.teacher ? `<span class="pill pill-sun">🎓 teach: ${escapeHtml(hobbyMeta(rel.teacher.hobby)?.label||'')}</span>` : ''}
             ${showsHobbies && rel.student ? `<span class="pill pill-mint">📚 learn: ${escapeHtml(hobbyMeta(rel.student.hobby)?.label||'')}</span>` : ''}
           </div>
-          <div class="text-[11px] text-themed-mute mt-0.5">${rp.tier.label} · ${Math.round(r.points||0)} pts</div>
-        </div>
-        <div class="text-right">
-          <div class="font-display font-semibold">${pct(score)}</div>
-          <div class="text-[10px] text-themed-mute">combined</div>
+          <div class="text-[11px] text-themed-mute mt-0.5">${escapeHtml(rp.tier.label)} · ${Math.round(r.points||0)} pts</div>
         </div>
       </div>
-      <div class="bar"><i style="width:${(score*100).toFixed(0)}%"></i></div>
     </a>`;
 }
 
+function zoneSection(me, z, items) {
+  return `
+    <div class="card p-4 grid gap-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${z.color}"></span>
+          <h3 class="font-display font-semibold text-themed">${escapeHtml(z.label)}</h3>
+          <span class="pill" style="color:${z.color};border-color:${z.color}55">${items.length}</span>
+        </div>
+        <span class="text-[11px] text-themed-mute">${escapeHtml(z.copy)}</span>
+      </div>
+      ${items.length ? items.map(x => personRow(me, x)).join('') : '<div class="card-soft p-3 text-xs text-themed-mute">No one in this zone right now.</div>'}
+    </div>`;
+}
+
 function floorView(me, visible) {
-  const top = [...visible].sort((a,b) => b.score - a.score).slice(0, 8);
   const dots = visible.map(x => dotFor(me, x)).join('');
+  // Sidebar lists people grouped by zone, alphabetical within each zone.
+  // No "top N by combined score" — the radar augments noticing, not ranking.
+  const groups = groupByZone(visible);
+  const reachZ  = PROX_ZONES.find(z => z.key === 'reach');
+  const nearbyZ = PROX_ZONES.find(z => z.key === 'nearby');
+  const sideZones = [reachZ, nearbyZ].filter(Boolean);
+  const anyVisible = visible.length > 0;
   return `
     <div class="grid lg:grid-cols-5 gap-6">
       <div class="lg:col-span-3 grid gap-3">
@@ -169,53 +211,52 @@ function floorView(me, visible) {
         </div>
         <div class="text-[11px] text-themed-mute flex items-center gap-3 flex-wrap">
           <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#fff;"></span> You</span>
-          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#ffd073;"></span> Ideal</span>
-          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#78f3d3;"></span> Strong</span>
-          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#9b8cff;"></span> Moderate</span>
+          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#ffd073;"></span> Ideal (your filter)</span>
+          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#78f3d3;"></span> Strong (your filter)</span>
+          <span class="flex items-center gap-1"><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:999px;background:#9b8cff;"></span> Moderate (your filter)</span>
           <span class="kbd">Rings: 2m · 5m · 10m</span>
         </div>
+        <p class="text-[11px] text-themed-mute">Glow rings are your own private filter, drawn on your surface. Look around the room — the radar is here to augment noticing, not to rank people.</p>
       </div>
       <aside class="lg:col-span-2 grid gap-3">
-        <h2 class="font-display font-semibold text-lg">Top of shortlist</h2>
-        ${top.length ? top.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-themed-mute">Nobody fits the active filters yet.</div>'}
+        <h2 class="font-display font-semibold text-lg text-themed">Who's nearby</h2>
+        <p class="text-[11px] text-themed-mute">Grouped by proximity. Within a zone, listed alphabetically — no ranking.</p>
+        ${anyVisible
+          ? sideZones.map(z => zoneSection(me, z, groups[z.key] || [])).join('')
+          : '<div class="card-soft p-3 text-sm text-themed-mute">Nobody in your bubble matches the active filters right now.</div>'}
       </aside>
     </div>`;
 }
 
-function shortlistView(me, visible) {
-  const sorted = [...visible].sort((a,b) => b.score - a.score);
+function aroundView(me, visible) {
+  const groups = groupByZone(visible);
+  const anyVisible = visible.length > 0;
   return `
     <div class="grid gap-3">
-      <div class="flex items-center justify-between text-xs text-themed-mute">
-        <span>${sorted.length} visible · sorted by combined score</span>
-        <span>match% × 0.55 · prox × 0.20 · hobby × 0.15 · rapport × 0.10</span>
+      <div class="flex items-center justify-between text-xs text-themed-mute flex-wrap gap-2">
+        <span>${visible.length} in your bubble · grouped by proximity, A→Z within zone</span>
+        <span>People are grouped, never ranked.</span>
       </div>
-      ${sorted.length ? sorted.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-sm text-themed-mute">Empty room. Adjust filters or privacy.</div>'}
+      ${anyVisible
+        ? `<div class="grid lg:grid-cols-2 gap-3">
+            ${ZONE_ORDER.map(zk => {
+              const z = PROX_ZONES.find(x => x.key === zk);
+              if (!z) return '';
+              return zoneSection(me, z, groups[zk] || []);
+            }).join('')}
+          </div>`
+        : '<div class="card-soft p-3 text-sm text-themed-mute">Empty room. Adjust filters or privacy.</div>'}
     </div>`;
 }
 
 function proximityView(me, visible) {
-  const groups = {};
-  for (const z of PROX_ZONES) groups[z.key] = [];
-  for (const x of visible) (groups[x.cls.zone.key] ||= []).push(x);
-  const ordered = ['reach','nearby','room','passing'];
+  const groups = groupByZone(visible);
   return `
     <div class="grid lg:grid-cols-2 gap-3">
-      ${ordered.map(zk => {
+      ${ZONE_ORDER.map(zk => {
         const z = PROX_ZONES.find(x => x.key === zk);
-        const items = (groups[zk] || []).sort((a,b) => b.score - a.score);
-        return `
-          <div class="card p-4 grid gap-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${z.color}"></span>
-                <h3 class="font-display font-semibold">${escapeHtml(z.label)}</h3>
-                <span class="pill" style="color:${z.color};border-color:${z.color}55">${items.length}</span>
-              </div>
-              <span class="text-[11px] text-themed-mute">${escapeHtml(z.copy)}</span>
-            </div>
-            ${items.length ? items.map(x => shortRow(me, x)).join('') : '<div class="card-soft p-3 text-xs text-themed-mute">No one in this zone right now.</div>'}
-          </div>`;
+        if (!z) return '';
+        return zoneSection(me, z, groups[zk] || []);
       }).join('')}
     </div>`;
 }
@@ -234,11 +275,17 @@ function tabBar(active) {
 // ----- Render ---------------------------------------------------------------
 
 export function render(root) {
-  if (unsubTick) { unsubTick(); unsubTick = null; }
+  if (unsubTick)  { unsubTick();  unsubTick  = null; }
+  if (unsubState) { unsubState(); unsubState = null; }
+
+  function teardown() {
+    if (unsubTick)  { unsubTick();  unsubTick  = null; }
+    if (unsubState) { unsubState(); unsubState = null; }
+  }
 
   function paint() {
     if (!location.hash.startsWith('#/floor')) {
-      if (unsubTick) { unsubTick(); unsubTick = null; }
+      teardown();
       return;
     }
     const me = store.profile;
@@ -251,7 +298,7 @@ export function render(root) {
 
     let body = '';
     if (vm === 'floor')          body = floorView(me, visible);
-    else if (vm === 'shortlist') body = shortlistView(me, visible);
+    else if (vm === 'around')    body = aroundView(me, visible);
     else if (vm === 'proximity') body = proximityView(me, visible);
 
     root.innerHTML = `
@@ -259,16 +306,16 @@ export function render(root) {
         <header class="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <p class="h-eyebrow">Live Floor · ${mode === 'dating' ? 'Dating' : 'Networking'} · ${escapeHtml(persona?.name || 'no alter ego')}${persona?.roleplay ? ` · as ${escapeHtml(persona.roleplay)}` : ''}</p>
-            <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">The room, right now</h1>
-            <p class="text-sm text-themed-soft mt-1 max-w-2xl">Pick an alter ego in the top-right pill (or <span class="kbd">[</span>/<span class="kbd">]</span> to cycle). Switching alter egos may switch mode automatically. <a href="#/privacy" class="hover:underline" style="color:var(--iris-soft)">Edit privacy</a>.</p>
+            <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-themed">The room, right now</h1>
+            <p class="text-sm text-themed-soft mt-1 max-w-2xl">People in your 10m bubble, grouped by proximity — never ranked. Pick an alter ego in the top-right pill (or <span class="kbd">[</span>/<span class="kbd">]</span> to cycle). Switching alter egos may switch mode automatically. <a href="#/privacy" class="hover:underline" style="color:var(--iris-soft)">Edit privacy</a>.</p>
           </div>
           <div class="flex flex-wrap gap-1.5">
             <span class="pill pill-mint">Reach ${stats.buckets.reach}</span>
             <span class="pill pill-iris">Nearby ${stats.buckets.nearby}</span>
             <span class="pill" style="color:#7b6cff;border-color:#7b6cff55">Room ${stats.buckets.room}</span>
             <span class="pill pill-sun">Passing ${stats.buckets.passing}</span>
-            <span class="pill" style="color:#ffd073;border-color:#ffd07355">Ideal ${stats.ideal}</span>
-            <span class="pill" style="color:#78f3d3;border-color:#78f3d355">Strong ${stats.strong}</span>
+            <span class="pill" style="color:#ffd073;border-color:#ffd07355" title="Your private filter">Ideal · your filter ${stats.ideal}</span>
+            <span class="pill" style="color:#78f3d3;border-color:#78f3d355" title="Your private filter">Strong · your filter ${stats.strong}</span>
           </div>
         </header>
 
@@ -291,5 +338,6 @@ export function render(root) {
   }
 
   paint();
-  unsubTick = bus.on('tick', paint);
+  unsubTick  = bus.on('tick', paint);
+  unsubState = bus.on('state:changed', paint);
 }

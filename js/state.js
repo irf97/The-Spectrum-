@@ -2,14 +2,12 @@
 // State is intentionally thin — engines do all logic.
 
 import {
-  DEFAULT_PROFILE, SAMPLE_PEOPLE, defaultMatrix, PRIVACY_AXES,
+  DEFAULT_PROFILE, SAMPLE_PEOPLE, SOCIETIES, defaultMatrix, PRIVACY_AXES,
   DEFAULT_DATING_PERSONA, DEFAULT_NETWORKING_PERSONA, PERSONA_PRESETS
 } from './data.js';
-import { classify } from './engines/proximity.js';
-import { accrualPerTick } from './engines/rapport.js';
-import { sharedKeys } from './engines/hobbies.js';
-import { canSee } from './engines/privacy.js';
-import { scoreCandidate } from './engines/match.js';
+import { decayPerTick, reachingFractionFromLast, REACHING_WINDOW_MS } from './engines/rapport.js';
+import { sweepExpiredReveals, REVEAL_GRANT_TTL_MS } from './engines/identity.js';
+import { contributionMeta } from './engines/society.js';
 import { bus, clamp, uid } from './util.js';
 
 const KEY = 'spectrum:v3';
@@ -18,6 +16,10 @@ const blank = () => ({
   profile: DEFAULT_PROFILE(),
   world: {},
   rapport: {},
+  // memberships[societyId] = { points, lastReachingTs, visits,
+  //                           contributions:[{ts,kind,delta,note,needId?}],
+  //                           fulfilledNeeds:[needId] }
+  memberships: {},
   reveals: {},
   muted: {},
   ui: {},
@@ -134,7 +136,41 @@ function migrate(s) {
   p.privacy.temp   = p.privacy.temp || {};
   if (typeof p.privacy.hideFromMatchBelow !== 'number') p.privacy.hideFromMatchBelow = 0.25;
   if (!p.privacy.allowSignal) p.privacy.allowSignal = 'ble';
+
+  // v5 → v6: dignity migration.
+  // (a) Normalise any persisted 'match_gated' privacy tier values to
+  //     'reveal_mutual'. The Phase-5 reconciliation deletes the match_gated
+  //     tier; legacy state migrates to stronger consent, not access-by-score.
+  // (b) Ensure every rapport entry has a `lastReachingTs` so decay has a
+  //     timestamp to read.
+  const normalizeTier = (t) => (t === 'match_gated' ? 'reveal_mutual' : t);
+  for (const ax of Object.keys(p.privacy.matrix)) {
+    p.privacy.matrix[ax] = normalizeTier(p.privacy.matrix[ax]);
+  }
+  for (const m of ['dating', 'networking']) {
+    for (const persona of p[m].personas) {
+      const o = persona.privacyOverrides || {};
+      for (const ax of Object.keys(o)) o[ax] = normalizeTier(o[ax]);
+    }
+  }
+  if (p.identity?.channels) {
+    for (const ch of Object.keys(p.identity.channels)) {
+      p.identity.channels[ch] = normalizeTier(p.identity.channels[ch]);
+    }
+  }
+  merged.rapport = merged.rapport || {};
+  for (const [, r] of Object.entries(merged.rapport)) {
+    if (r && r.lastReachingTs == null) {
+      const notes = r.manualNotes || [];
+      r.lastReachingTs = notes.length ? notes[notes.length - 1].ts : 0;
+    }
+  }
+  merged.reveals = merged.reveals || {};
   merged.ui = merged.ui || {};
+  // Phase 6 — per-society memberships. Default to empty; the user accrues
+  // standing only through explicit contribution. _ensureMemberships seeds
+  // empty records for each known society so the screen has rows to render.
+  merged.memberships = merged.memberships || {};
   return merged;
 }
 
@@ -402,10 +438,28 @@ class Store {
         };
       }
       if (!this.s.rapport[p.id]) {
-        this.s.rapport[p.id] = { points: 0, sharedSessions: 0, manualNotes: [] };
+        this.s.rapport[p.id] = { points: 0, sharedSessions: 0, lastReachingTs: 0, manualNotes: [] };
+      } else if (this.s.rapport[p.id].lastReachingTs == null) {
+        const notes = this.s.rapport[p.id].manualNotes || [];
+        this.s.rapport[p.id].lastReachingTs = notes.length ? notes[notes.length - 1].ts : 0;
       }
     });
+    this._ensureMemberships();
     this.save();
+  }
+
+  _ensureMemberships() {
+    SOCIETIES.forEach((soc) => {
+      if (!this.s.memberships[soc.id]) {
+        this.s.memberships[soc.id] = {
+          points: 0,
+          lastReachingTs: 0,
+          visits: 0,
+          contributions: [],
+          fulfilledNeeds: [],
+        };
+      }
+    });
   }
 
   startTicking() { if (this._tickHandle) return; this._tickHandle = setInterval(() => this.tick(), 1000); }
@@ -424,15 +478,21 @@ class Store {
 
   tick() {
     const w = this.s.world;
-    const me = this.s.profile;
-    const muted = this.s.muted;
-    const reveals = this.s.reveals;
-    const indexSeed = new Map(SAMPLE_PEOPLE.map(p => [p.id, p]));
-    const activeDating = this.activePersonaFor('dating');
+    const now = Date.now();
 
     let dirty = this._expireTemps();
 
-    Object.entries(w).forEach(([id, p]) => {
+    // Phase 5 expiry sweep: reveal grants live for REVEAL_GRANT_TTL_MS and
+    // then auto-clear. The user must re-flag to renew — "no permanence
+    // without review." Policy lives in engines/identity.js.
+    const sweep = sweepExpiredReveals(this.s.reveals, REVEAL_GRANT_TTL_MS, now);
+    if (sweep.removed > 0) {
+      this.s.reveals = sweep.reveals;
+      dirty = true;
+    }
+
+    // 1. Move the world (proximity refresh only — no rapport coupling).
+    Object.values(w).forEach((p) => {
       p.x += p.vx; p.y += p.vy;
       if (Math.abs(p.x) > 12) p.vx *= -1;
       if (Math.abs(p.y) > 12) p.vy *= -1;
@@ -443,34 +503,33 @@ class Store {
       p.dist = Math.hypot(p.x, p.y);
       if (Math.random() < 0.005) p.stable = !p.stable;
       p.signal = clamp(p.signal + (Math.random() - 0.5) * 0.05, 0.05, 1);
-
-      if (me.optIn && !muted[id]) {
-        const seed = indexSeed.get(id);
-        const cls = classify({ dist: p.dist, optIn: p.optIn, stable: p.stable, signal: p.signal });
-        const shared = sharedKeys(me.hobbies, seed?.hobbies);
-        const sc = seed && me.dating?.enabled && activeDating ? scoreCandidate(seed, activeDating.prefs) : { pct: 0 };
-        const ctx = {
-          muted: !!muted[id],
-          zoneKey: cls.zone.key,
-          matchPct: sc.pct,
-          viewerReveal: !!reveals[id],
-          subjectReveal: !!reveals[id],
-        };
-        const allowAccrue = canSee(me, seed || { id }, 'countRapportWith', ctx);
-        if (allowAccrue) {
-          const gain = accrualPerTick({
-            zoneKey: cls.zone.key, stable: p.stable, signal: p.signal, optIn: p.optIn, sharedHobbyKeys: shared
-          });
-          if (gain > 0) {
-            const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, manualNotes: [] };
-            r.points = clamp(r.points + gain, -10000, 99999);
-          }
-        }
-      }
     });
 
+    // 2. Phase 5 rapport decay. Per-person standing fades toward 0 unless the
+    //    user is currently reaching (lastReachingTs within REACHING_WINDOW_MS).
+    //    Nothing here adds points; accrual is via addManualRapport /
+    //    logSharedSession only. Passive proximity dwell is no longer a
+    //    standalone accrual driver — proximity is not consent.
+    for (const [, r] of Object.entries(this.s.rapport)) {
+      if (!r || r.points === 0) continue;
+      const reaching = reachingFractionFromLast(r.lastReachingTs || 0, now);
+      const next = decayPerTick(r.points, reaching);
+      if (next !== r.points) r.points = next;
+    }
+
+    // 3. Phase 6 society standing decay. Same master equation, applied per
+    //    society. Standing held by contributing to that society's flourishing;
+    //    fades when the user stops showing up. Never gates access — only
+    //    depth and suggestions.
+    for (const [, m] of Object.entries(this.s.memberships)) {
+      if (!m || m.points === 0) continue;
+      const reaching = reachingFractionFromLast(m.lastReachingTs || 0, now);
+      const next = decayPerTick(m.points, reaching);
+      if (next !== m.points) m.points = next;
+    }
+
     this.s.meta.ticks += 1;
-    this.s.meta.lastTick = Date.now();
+    this.s.meta.lastTick = now;
     if (dirty || this.s.meta.ticks % 5 === 0) this.save();
     bus.emit('tick');
   }
@@ -486,23 +545,71 @@ class Store {
     this.save();
   }
   addManualRapport(id, delta, note) {
-    const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, manualNotes: [] };
+    const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, lastReachingTs: 0, manualNotes: [] };
+    const now = Date.now();
     r.points = clamp(r.points + Number(delta), -10000, 99999);
-    r.manualNotes.push({ ts: Date.now(), delta: Number(delta), note: String(note || '').slice(0, 160) });
-    this.s.log.unshift({ ts: Date.now(), kind: 'rating', personId: id, delta: Number(delta) });
+    r.manualNotes.push({ ts: now, delta: Number(delta), note: String(note || '').slice(0, 160) });
+    r.lastReachingTs = now;
+    this.s.log.unshift({ ts: now, kind: 'rating', personId: id, delta: Number(delta) });
     this.s.log = this.s.log.slice(0, 200);
     this.save();
   }
   logSharedSession(id, hobbyKey, durationMin) {
-    const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, manualNotes: [] };
+    const r = this.s.rapport[id] ??= { points: 0, sharedSessions: 0, lastReachingTs: 0, manualNotes: [] };
+    const now = Date.now();
     const gain = 5 + Math.min(20, durationMin * 0.5);
     r.points = clamp(r.points + gain, -10000, 99999);
     r.sharedSessions += 1;
-    r.manualNotes.push({ ts: Date.now(), delta: gain, note: `Shared ${hobbyKey} (${Math.round(durationMin)}m)` });
-    this.s.log.unshift({ ts: Date.now(), kind: 'shared', personId: id, hobbyKey, durationMin });
+    r.manualNotes.push({ ts: now, delta: gain, note: `Shared ${hobbyKey} (${Math.round(durationMin)}m)` });
+    r.lastReachingTs = now;
+    this.s.log.unshift({ ts: now, kind: 'shared', personId: id, hobbyKey, durationMin });
     this.s.log = this.s.log.slice(0, 200);
     this.save();
   }
 }
 
+// ---- Phase 6 society mutators (attached to the Store prototype) ------------
+//
+// Each mutator is an explicit, user-initiated event. The store is the only
+// place society standing accrues — the engine is pure, the tick only decays.
+
+Store.prototype.contributeToSociety = function (societyId, kind, note = '') {
+  const soc = SOCIETIES.find(s => s.id === societyId);
+  if (!soc) return;
+  const meta = contributionMeta(kind);
+  if (!meta) return;
+  const m = this.s.memberships[societyId] ??= { points: 0, lastReachingTs: 0, visits: 0, contributions: [], fulfilledNeeds: [] };
+  const now = Date.now();
+  m.points = clamp(m.points + meta.delta, -10000, 99999);
+  m.lastReachingTs = now;
+  m.contributions.push({ ts: now, kind, delta: meta.delta, note: String(note || meta.label).slice(0, 160) });
+  if (kind === 'visit') m.visits += 1;
+  this.s.log.unshift({ ts: now, kind: 'society-contribute', societyId, contribKind: kind, delta: meta.delta });
+  this.s.log = this.s.log.slice(0, 200);
+  this.save();
+};
+
+Store.prototype.visitSociety = function (societyId) {
+  this.contributeToSociety(societyId, 'visit', 'Showed up.');
+};
+
+Store.prototype.fulfillSocietyNeed = function (societyId, needId) {
+  const soc = SOCIETIES.find(s => s.id === societyId);
+  if (!soc) return;
+  const need = (soc.needs || []).find(n => n.id === needId);
+  if (!need) return;
+  const m = this.s.memberships[societyId] ??= { points: 0, lastReachingTs: 0, visits: 0, contributions: [], fulfilledNeeds: [] };
+  if (m.fulfilledNeeds.includes(needId)) return;  // idempotent — a fulfilled need is not re-fulfilled
+  const meta = contributionMeta('fulfill_need');
+  const now = Date.now();
+  m.points = clamp(m.points + meta.delta, -10000, 99999);
+  m.lastReachingTs = now;
+  m.contributions.push({ ts: now, kind: 'fulfill_need', delta: meta.delta, note: need.label, needId });
+  m.fulfilledNeeds.push(needId);
+  this.s.log.unshift({ ts: now, kind: 'society-need', societyId, needId, delta: meta.delta });
+  this.s.log = this.s.log.slice(0, 200);
+  this.save();
+};
+
 export const store = new Store();
+export { REACHING_WINDOW_MS, REVEAL_GRANT_TTL_MS };

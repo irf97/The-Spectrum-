@@ -1,15 +1,14 @@
-// Layer 2 — Physical Match Percentage screen.
+// Layer 2 — "Your physical preferences" screen.
 // Gender-aware: "Looking for" gender chooses which option set is shown, and
-// which candidates make it to the live ranking. Adds richer preference fields.
+// shapes the count-only projection of who is currently reachable in the room.
+// Dignity (Living Mesh §11): never rank people as objects. This screen shows
+// only counts per bucket — no individual names, no ordered list.
 
 import { fieldsFor, GENDERS, MATCH_BUCKETS, SAMPLE_PEOPLE } from './data.js';
 import { scoreCandidate, setWeight, toggleExcluded, toggleFilter, setTarget, setGender } from './engines/match.js';
+import { classify } from './engines/proximity.js';
 import { store } from './state.js';
-import { $, $$, escapeHtml, initials, colorFor, pct } from './util.js';
-
-function bucketChip(bucket, percent) {
-  return `<span class="pill" style="color:${bucket.swatch};border-color:${bucket.swatch}55"><span class="dot"></span>${escapeHtml(bucket.label)} · ${pct(percent)}</span>`;
-}
+import { $$, escapeHtml } from './util.js';
 
 function fieldRow(f, prefs) {
   if (f.key === 'gender') return ''; // gender lives in the top selector, not the field grid
@@ -43,26 +42,6 @@ function fieldRow(f, prefs) {
   `;
 }
 
-function candidateRow(p, prefs) {
-  const r = scoreCandidate(p, prefs);
-  return `
-    <a href="#/people/${p.id}" class="card-soft p-3 flex items-center gap-3 hover:border-iris-500/60 transition">
-      <span class="avatar w-10 h-10" style="background: linear-gradient(135deg, ${colorFor(p.id)}, var(--panel))">${initials(p.name)}</span>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-medium truncate">${escapeHtml(p.name)}</span>
-          ${p.gender ? `<span class="pill pill-iris">${escapeHtml(p.gender)}</span>` : ''}
-          ${bucketChip(r.bucket, r.pct)}
-          ${r.blockedBy.length ? `<span class="pill pill-rose">filter blocked</span>` : ''}
-          ${r.excludedHits.length ? `<span class="pill pill-rose">excluded</span>` : ''}
-        </div>
-        <div class="bar mt-1.5"><i style="width:${(r.pct*100).toFixed(0)}%"></i></div>
-        <div class="text-[11px] text-themed-mute mt-1 truncate">${r.dimensions.filter(d => d.score != null).slice(0,4).map(d => `${d.label}:${(d.score*100|0)}%`).join(' · ')}</div>
-      </div>
-    </a>
-  `;
-}
-
 function bucketLegend() {
   return `<div class="flex flex-wrap gap-1.5">
     ${MATCH_BUCKETS.map(b => `<span class="pill" style="color:${b.swatch};border-color:${b.swatch}55">${escapeHtml(b.label)} · ≥${(b.min*100|0)}%</span>`).join('')}
@@ -85,6 +64,54 @@ function genderSelector(current) {
     </div>`;
 }
 
+// Count-only projection: how the user's preference vector projects onto the
+// people currently reachable in the room. No names, no order on individuals.
+function projectionPanel(prefs) {
+  const reachable = SAMPLE_PEOPLE
+    .filter(p => p.modes?.dating)
+    .filter(p => {
+      const z = classify(p).zone.key;
+      return z !== 'hidden' && z !== 'outrange' && z !== 'muted' && z !== 'unknown';
+    });
+  const counts = Object.fromEntries(MATCH_BUCKETS.map(b => [b.key, 0]));
+  for (const p of reachable) {
+    const r = scoreCandidate(p, prefs);
+    counts[r.bucket.key] = (counts[r.bucket.key] ?? 0) + 1;
+  }
+  const rows = MATCH_BUCKETS.map(b => `
+    <div class="flex items-center justify-between gap-3">
+      <span class="pill" style="color:${b.swatch};border-color:${b.swatch}55"><span class="dot"></span>${escapeHtml(b.label)}</span>
+      <span class="text-sm text-themed-soft tabular-nums">${counts[b.key]}</span>
+    </div>
+  `).join('');
+  return `
+    <div class="card p-3 grid gap-3">
+      <div>
+        <h2 class="font-display font-semibold text-lg">How your preferences project on this room</h2>
+        <p class="text-[11px] text-themed-mute mt-0.5">Counts only. The Spectrum never ranks people into a list.</p>
+      </div>
+      <div class="grid gap-1.5">${rows}</div>
+      <div class="text-xs text-themed-soft">${reachable.length} ${reachable.length === 1 ? 'person' : 'people'} currently reachable.</div>
+      <a href="#/floor" class="btn btn-primary w-fit">To meet someone, look around the room — the Floor is your radar.</a>
+    </div>
+  `;
+}
+
+function howThisIsUsed() {
+  return `
+    <div class="card-soft p-3 grid gap-2">
+      <h2 class="font-display font-semibold">How this is used</h2>
+      <ul class="grid gap-1.5 text-sm text-themed-soft list-disc pl-5">
+        <li>The number is computed on your device against your own preference vector. Nobody else sees it.</li>
+        <li>It glows rings on dots on your own Floor radar — a private cue for you, not a label about the other person.</li>
+        <li>It can pull your own surface down to avatar via the reveal self-simplify filter (Layer 4) — to keep your room simple.</li>
+        <li>It does NOT unlock more of the other person. Reveal still requires a mutual handshake (both sides flag each other).</li>
+        <li>It does NOT order anyone into a list. People you might meet are grouped by proximity, not by fit.</li>
+      </ul>
+    </div>
+  `;
+}
+
 export function render(root) {
   const me = store.profile;
   if (!me.dating?.enabled) {
@@ -92,10 +119,10 @@ export function render(root) {
       <section class="grid gap-4">
         <header>
           <p class="h-eyebrow">Layer 2 · Dating</p>
-          <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Physical Match</h1>
+          <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Your physical preferences</h1>
         </header>
         <div class="card p-4 grid gap-2">
-          <p class="text-themed-soft">Your dating profile is currently turned off. Turn it on to score people on physical and lifestyle attributes. Networking match lives on the <a href="#/alignment" class="hover:underline" style="color:var(--iris-soft)">Alignment</a> page instead.</p>
+          <p class="text-themed-soft">Your dating profile is currently turned off. Turn it on to score people on physical and lifestyle attributes — privately, on your own device. Networking alignment lives on the <a href="#/alignment" class="hover:underline" style="color:var(--iris-soft)">Alignment</a> page instead.</p>
           <a href="#/profile" class="btn btn-primary w-fit">Open profile</a>
         </div>
       </section>`;
@@ -104,18 +131,14 @@ export function render(root) {
   const persona = store.activePersonaFor('dating');
   const prefs = persona.prefs;
   const fields = fieldsFor(prefs.gender || 'any');
-  const candidates = SAMPLE_PEOPLE
-    .filter(p => p.modes?.dating)
-    .map(p => ({ p, r: scoreCandidate(p, prefs) }))
-    .sort((a,b) => b.r.pct - a.r.pct);
 
   root.innerHTML = `
     <section class="grid gap-6">
       <header class="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <p class="h-eyebrow">Layer 2 · Dating</p>
-          <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Physical Match Percentage</h1>
-          <p class="text-sm text-themed-soft mt-1 max-w-2xl">Hard non-negotiables, weighted preferences, and excluded values collapse into a single physical fit score per person. Choose who you're looking for first; the option set adapts.</p>
+          <h1 class="font-display text-2xl sm:text-3xl font-semibold tracking-tight">Your physical preferences</h1>
+          <p class="text-sm text-themed-soft mt-1 max-w-2xl">A private filter on your own search. Hard non-negotiables, weighted preferences, and excluded values shape what the Floor highlights for <em>you</em> — they never rank or expose anyone else. Choose who you're looking for first; the option set adapts.</p>
         </div>
         ${bucketLegend()}
       </header>
@@ -128,9 +151,9 @@ export function render(root) {
           ${fields.map(f => fieldRow(f, prefs)).join('')}
         </div>
 
-        <aside class="lg:col-span-2 grid gap-3">
-          <h2 class="font-display font-semibold text-lg">Live ranking</h2>
-          ${candidates.slice(0, 12).map(({p}) => candidateRow(p, prefs)).join('')}
+        <aside class="lg:col-span-2 grid gap-4">
+          ${projectionPanel(prefs)}
+          ${howThisIsUsed()}
         </aside>
       </div>
     </section>
