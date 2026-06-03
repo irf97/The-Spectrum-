@@ -1,0 +1,11 @@
+{
+  "name": "the-spectrum",
+  "version": "0.6.0",
+  "description": "A real-life social operating system. Five-layer Living-Mesh projection + per-society standing. Local-first, no cloud, no real radios — yet.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-reporter=spec tests/proximity.test.mjs tests/identity.test.mjs tests/rapport.test.mjs tests/match.test.mjs tests/alignment.test.mjs tests/hobbies.test.mjs tests/privacy.test.mjs tests/society.test.mjs",
+    "serve": "python -m http.server 8000"
+  }
+}

@@ -144,6 +144,8 @@ export function sweepExpiredReveals(reveals, ttlMs = REVEAL_GRANT_TTL_MS, now = 
  * Returns 0 if already expired or never granted.
  */
 export function revealGrantRemainingMs(ts, ttlMs = REVEAL_GRANT_TTL_MS, now = Date.now()) {
-  if (typeof ts !== 'number' || ts <= 0) return 0;
+  // Number.isFinite (not typeof) — NaN is typeof 'number' and would slip a
+  // raw guard, producing NaN downstream in the countdown UI.
+  if (!Number.isFinite(ts) || ts <= 0) return 0;
   return Math.max(0, ts + ttlMs - now);
 }
