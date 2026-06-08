@@ -224,7 +224,56 @@ names it.
   Aeon principle and the Living Mesh forgiving-reputation canon.
 - `KERNEL.md` — Phase 2 primitives map, expiry + override implementation.
 - `STATUS-v18.md` — Phase 4 audit of the deployed v18 branch.
+- `PAPER.md` — the working paper.
 - `docs/README.md` — pointer to the Living Mesh canon (lives at `../docs/`).
+
+## Contribution coordination (the Enschede pilot)
+
+Layer 5b's society engine is re-aimed at **work**: a *site* (the Enschede
+kitchen + grow-unit, at `#/contribute`) is a node whose advertised needs are
+tasks. Work finds you — open tasks surface as a swipe feed matched on
+persona × proximity × available-now — and material reward can exist without
+turning standing into a convertible score, via **two ledgers that never read
+each other**:
+
+- **Ledger A — Standing** (`society.js`). Held by reaching, decays to the
+  floor, modifies *depth only*, gates nothing, converts to nothing.
+- **Ledger B — Fulfilled needs** (`fulfilment.js`). Discrete, proof-verified
+  events. Bears the material reward (`reward.js`): grace routed through in-mesh
+  third spaces, and housing-priority points. Per-event, never derived from
+  standing.
+
+A source-level test (`tests/contribution.test.mjs`) fails if either ledger
+imports or references the other, and a behavioural test sweeps standing 0→max
+with zero fulfilments and asserts reward and housing-points stay exactly 0.
+Reward is proof-gated and scaled to stake (`evidence.js`): no reward above
+*grace* issues without a strong, real, task-intrinsic proof.
+
+### Honest notes on the pilot
+
+- **The strong co-presence proof is designed, not built.** Distance-bounding +
+  secure-element identity is a typed stub behind the seam; until the radios
+  exist, material reward rests on **task-intrinsic evidence only** (a grow-unit
+  sensor, a kitchen log, a commit). The seam is the deliverable, not the radio.
+- **Task-intrinsic evidence has limited reach.** Contributions that leave no
+  machine trace — comforting a neighbour, defusing a conflict, carrying surplus
+  to someone who couldn't come — can carry **grace only**, never material
+  reward, by construction. Some of the most human work cannot be materially
+  rewarded under this design. Said plainly, not papered over.
+- **Two ledgers add complexity** — two systems to keep honest, and a new
+  failure mode if they leak. Invariant (e) — the structural separation — is
+  load-bearing; it gets both a source scan and a behavioural test.
+- **The reward proves the task, never surveils the person.** Proximity buckets
+  and ephemeral presence pings only — never a movement record. Privacy-first is
+  non-negotiable even to defend a reward.
+- **Floor vs above-floor.** Food and floor housing are needs — unconditional,
+  unranked, never withheld. Housing-priority points buy *above-floor* housing,
+  held as stewardship while contribution continues (the balance decays when it
+  stops) and returned when it ends. Rank the reward, never the floor. The
+  external housing-corporation integration is out of scope and partner-dependent.
+- **The keystone bet is untested and unbuildable here.** Whether people reach
+  for the boring necessary task when freed is answered by the live pilot, not by
+  this code. This build makes the test *fair*; it does not pre-decide it.
 
 ## Notes
 

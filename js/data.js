@@ -506,6 +506,73 @@ export const SOCIETIES = [
     ]},
 ];
 
+// ---------- Contribution sites (the Enschede pilot) --------------------------
+//
+// A *site* is a local-authority node whose advertised needs are concrete
+// TASKS — the work that keeps a real thing running. The pilot site splits
+// cleanly into the joy (cooking, hosting the meal — has a constituency) and
+// the drudgery (the 6am nutrient check, cleaning, restock — has none). The
+// drudgery is the actual test of whether willingness, made trivially easy,
+// can carry the boring middle.
+//
+// Each task carries:
+//   - tags        : persona-match keys (what a person likes) — shapes the
+//                   person's own swipe feed, never excludes the person.
+//   - stake       : 'low' (a missed watering is a sad plant; trivial,
+//                   recoverable) | 'high' (expert work that shrinks the spine).
+//                   Reward is scaled to stake; only high-stake bound work
+//                   earns the scarce housing-priority reward.
+//   - evidence.intrinsic : the task's OWN machine trace that can prove it was
+//                   done — a grow-unit sensor reading, a kitchen log line, a
+//                   commit. `null` means the task leaves no machine trace, so
+//                   it can earn grace at most, never material housing reward
+//                   (invariant i). The proof is of the TASK, never surveillance
+//                   of the person.
+//
+// Standing with a site (Ledger A) lives in the same memberships map as social
+// societies — depth-only, decaying, gating nothing. The reward ledger
+// (Ledger B) is entirely separate and never reads standing.
+export const SITES = [
+  {
+    id:'enschede-kitchen', name:"Derya's Community Kitchen", kind:'site', icon:'🍲',
+    copy:'A shared kitchen + small hydroponic grow-unit feeding ~30–50 people several times a week. The pilot site — the joy and the drudgery, side by side, under one mesh.',
+    interests:['cooking','gardening','reading'],
+    needs:[
+      // The joy — has a constituency. Willingness should cover this easily.
+      { id:'k-cook-thu', siteId:'enschede-kitchen', task:'cook_session',
+        label:'Cook + host the Thursday meal', kind:'host',
+        copy:'Run the shared meal — social, visible, joyful. The control case.',
+        durationMin:120, distanceM:200, tags:['cooking','being-around-people','teaching'],
+        stake:'low', evidence:{ intrinsic:'kitchen_log' } },
+      // The drudgery — has none. This is the actual test.
+      { id:'g-nutrient-am', siteId:'enschede-kitchen', task:'nutrient_check',
+        label:'6am nutrient + pH check', kind:'fix',
+        copy:'The grow-unit check. Quiet, solitary, continuous. The boring necessary thing.',
+        durationMin:15, distanceM:200, tags:['quiet-solo-work','morning','gardening'],
+        stake:'low', evidence:{ intrinsic:'grow_sensor' } },
+      { id:'k-clean-down', siteId:'enschede-kitchen', task:'clean_down',
+        label:'Clean-down after service', kind:'fix',
+        copy:'Tedious, necessary, often alone.',
+        durationMin:30, distanceM:200, tags:['cleaning','quiet-solo-work'],
+        stake:'low', evidence:{ intrinsic:'kitchen_log' } },
+      // No machine trace → grace only. Some real work cannot be materially
+      // rewarded, by construction (invariant i). Said plainly, not hidden.
+      { id:'g-restock', siteId:'enschede-kitchen', task:'restock',
+        label:'Restock + surplus redistribution', kind:'help',
+        copy:'Carry surplus to those who could not come. Human, untraceable, grace-only.',
+        durationMin:45, distanceM:400, tags:['fixing','being-around-people'],
+        stake:'low', evidence:{ intrinsic:null } },
+      // The expert reward path. High stake, bound evidence → housing-priority
+      // points. The work that visibly lowers everyone's cost.
+      { id:'k-build-automation', siteId:'enschede-kitchen', task:'build_automation',
+        label:'Build the grow-unit auto-doser', kind:'craft',
+        copy:'Expert work that shrinks the paid spine — the kind that earns above-floor housing as stewardship.',
+        durationMin:240, distanceM:0, tags:['fixing','quiet-solo-work','skills','coding'],
+        stake:'high', evidence:{ intrinsic:'commit_log' } },
+    ],
+  },
+];
+
 export const DEFAULT_PROFILE = () => ({
   id: 'me',
   name: 'You',
@@ -528,6 +595,14 @@ export const DEFAULT_PROFILE = () => ({
     { key:'cooking',  skill: 55, role:'peers'   },
     { key:'reading',  skill: 60, role:'practicing' }
   ],
+  // Lightweight, self-set contribution persona for the swipe feed — preferences,
+  // not a CV. Stored under consent; what you like, when you're free, any limits.
+  // Shapes only your own feed; never a dossier, never read by reward or standing.
+  contribution: {
+    likes: ['cooking', 'quiet-solo-work', 'morning', 'gardening', 'being-around-people'],
+    constraints: [],          // e.g. 'heavy-lifting' — a limit on YOUR feed, not on the node
+    availableNow: true,       // opted into the live feed
+  },
   privacy: {
     hideFromMatchBelow: 0.25,
     allowSignal: 'ble',

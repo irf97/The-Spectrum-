@@ -11,6 +11,7 @@ import * as Layer3    from './layer3.js';
 import * as Layer4    from './layer4.js';
 import * as Layer5    from './layer5.js';
 import * as Societies from './societies.js';
+import * as Contribute from './contribution.js';
 import * as Profile   from './profile.js';
 import * as Privacy   from './privacy.js';
 import * as Theme     from './theme.js';
@@ -24,6 +25,7 @@ defineRoute({ path: '/proximity', name:'prox',      label:'Proximity', icon:'③
 defineRoute({ path: '/identity',  name:'identity',  label:'Identity',  icon:'④', render: Layer4.render });
 defineRoute({ path: '/rapport',   name:'rapport',   label:'Rapport',   icon:'⑤', render: Layer5.render });
 defineRoute({ path: '/societies', name:'societies', label:'Societies', icon:'❖', render: Societies.render });
+defineRoute({ path: '/contribute',name:'contribute',label:'Contribute',icon:'⛏', render: Contribute.render });
 defineRoute({ path: '/profile',   name:'profile',   label:'Profile',   icon:'◉', render: Profile.render });
 defineRoute({ path: '/privacy',   name:'privacy',   label:'Privacy',   icon:'🔒', render: Privacy.render });
 defineRoute({ path: '/theme',     name:'theme',     label:'Theme',     icon:'🎨', render: Theme.render });

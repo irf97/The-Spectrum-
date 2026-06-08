@@ -2,13 +2,23 @@
 // State is intentionally thin — engines do all logic.
 
 import {
-  DEFAULT_PROFILE, SAMPLE_PEOPLE, SOCIETIES, defaultMatrix, PRIVACY_AXES,
+  DEFAULT_PROFILE, SAMPLE_PEOPLE, SOCIETIES, SITES, defaultMatrix, PRIVACY_AXES,
   DEFAULT_DATING_PERSONA, DEFAULT_NETWORKING_PERSONA, PERSONA_PRESETS
 } from './data.js';
 import { decayPerTick, reachingFractionFromLast, REACHING_WINDOW_MS } from './engines/rapport.js';
 import { sweepExpiredReveals, REVEAL_GRANT_TTL_MS } from './engines/identity.js';
 import { contributionMeta } from './engines/society.js';
+import { needById } from './engines/node.js';
+import { recordFulfilment, fulfilledNeedIds } from './engines/fulfilment.js';
+import { resolveProof } from './engines/evidence.js';
 import { bus, clamp, uid } from './util.js';
+
+// Ledger A and Ledger B never read each other. The store is the only place
+// where a single user action (fulfilling a need) writes to BOTH — and it does
+// so as two independent writes: a standing accrual (Ledger A, society.js,
+// depth-only) and a fulfilment event (Ledger B, fulfilment.js, reward-bearing).
+// Neither write reads the other ledger. Reward (reward.js) reads only Ledger B.
+const ALL_NODES = [...SOCIETIES, ...SITES];
 
 const KEY = 'spectrum:v3';
 
@@ -16,10 +26,14 @@ const blank = () => ({
   profile: DEFAULT_PROFILE(),
   world: {},
   rapport: {},
-  // memberships[societyId] = { points, lastReachingTs, visits,
-  //                           contributions:[{ts,kind,delta,note,needId?}],
-  //                           fulfilledNeeds:[needId] }
+  // LEDGER A — standing. memberships[nodeId] = { points, lastReachingTs, visits,
+  //   contributions:[{ts,kind,delta,note,needId?}], fulfilledNeeds:[needId] }
+  //   Held by reaching, decays, depth-only, gates nothing.
   memberships: {},
+  // LEDGER B — fulfilled needs. A flat log of discrete, proof-verified events.
+  //   [{ needId, siteId, personId, ts, proof:{tier,real,source}, stake, task }]
+  //   Bears the material reward. Never derived from Ledger A.
+  fulfilments: [],
   reveals: {},
   muted: {},
   ui: {},
@@ -167,10 +181,16 @@ function migrate(s) {
   }
   merged.reveals = merged.reveals || {};
   merged.ui = merged.ui || {};
-  // Phase 6 — per-society memberships. Default to empty; the user accrues
-  // standing only through explicit contribution. _ensureMemberships seeds
-  // empty records for each known society so the screen has rows to render.
+  // Phase 6 — per-society memberships (Ledger A). Default to empty; the user
+  // accrues standing only through explicit contribution. _ensureMemberships
+  // seeds empty records for each known node so the screen has rows to render.
   merged.memberships = merged.memberships || {};
+  // Contribution pilot — Ledger B fulfilment log. Append-only event record.
+  merged.fulfilments = Array.isArray(merged.fulfilments) ? merged.fulfilments : [];
+  // Migrate older profiles that pre-date the contribution persona.
+  if (merged.profile && !merged.profile.contribution) {
+    merged.profile.contribution = { likes: [], constraints: [], availableNow: true };
+  }
   return merged;
 }
 
@@ -449,9 +469,11 @@ class Store {
   }
 
   _ensureMemberships() {
-    SOCIETIES.forEach((soc) => {
-      if (!this.s.memberships[soc.id]) {
-        this.s.memberships[soc.id] = {
+    // Standing (Ledger A) records for every node — social societies AND
+    // contribution sites alike. A site is a node whose needs are tasks.
+    ALL_NODES.forEach((node) => {
+      if (!this.s.memberships[node.id]) {
+        this.s.memberships[node.id] = {
           points: 0,
           lastReachingTs: 0,
           visits: 0,
@@ -609,6 +631,69 @@ Store.prototype.fulfillSocietyNeed = function (societyId, needId) {
   this.s.log.unshift({ ts: now, kind: 'society-need', societyId, needId, delta: meta.delta });
   this.s.log = this.s.log.slice(0, 200);
   this.save();
+};
+
+// ---- Contribution pilot mutator (the two-ledger write) ---------------------
+//
+// Fulfilling a task at a site is the only place a single user action writes to
+// BOTH ledgers — and it does so as two INDEPENDENT writes:
+//
+//   1. Ledger B (reward-bearing): resolve the task's proof via the evidence
+//      seam, then append a discrete fulfilment event carrying that proof.
+//      reward.js will read this — and only this — to compute material reward.
+//
+//   2. Ledger A (depth-only): accrue site standing exactly as for a social
+//      society. This bumps points/recency for the "depth" surfaces.
+//
+// Crucially, neither write reads the other. The proof and reward path never
+// consult standing; the standing accrual never consults proof or reward. That
+// independence is invariant (e), and the structural smoke fails if it is ever
+// violated by a stray import or dataflow.
+Store.prototype.fulfilNeed = function (siteId, needId, opts = {}) {
+  const site = SITES.find(s => s.id === siteId) || SOCIETIES.find(s => s.id === siteId);
+  if (!site) return null;
+  const need = needById(site, needId);
+  if (!need) return null;
+  const personId = opts.personId || this.s.profile.id || 'me';
+  const now = Date.now();
+
+  // Idempotent: a fulfilled need is not re-fulfilled by the same person.
+  const already = this.s.fulfilments.some(e => e.needId === needId && e.personId === personId);
+  if (already) return null;
+
+  // --- Write 1: Ledger B. Resolve proof of the TASK (never the person). ---
+  const proof = resolveProof(need, {
+    siteReadings: opts.siteReadings || {},   // task-intrinsic confirmation (sim)
+    personId,
+    nonce: opts.nonce ?? uid(),              // a fresh node-local presence nonce
+    issuedAt: opts.issuedAt ?? now,
+    now,
+    ttlMs: opts.ttlMs,
+    useStrongStub: !!opts.useStrongStub,     // co-presence stub — off by default
+  });
+  this.s.fulfilments = recordFulfilment(this.s.fulfilments, {
+    needId, siteId: site.id, personId, ts: now, proof,
+    stake: need.stake || 'low', task: need.task || null,
+  });
+
+  // --- Write 2: Ledger A. Accrue site standing (depth-only). ---
+  // Does not read proof or reward; standing rises for the reaching, full stop.
+  const m = this.s.memberships[site.id] ??= { points: 0, lastReachingTs: 0, visits: 0, contributions: [], fulfilledNeeds: [] };
+  const meta = contributionMeta('fulfill_need');
+  m.points = clamp(m.points + meta.delta, -10000, 99999);
+  m.lastReachingTs = now;
+  m.contributions.push({ ts: now, kind: 'fulfill_need', delta: meta.delta, note: need.label, needId });
+  if (!m.fulfilledNeeds.includes(needId)) m.fulfilledNeeds.push(needId);
+
+  this.s.log.unshift({ ts: now, kind: 'site-fulfil', siteId: site.id, needId, proofTier: proof.tier });
+  this.s.log = this.s.log.slice(0, 200);
+  this.save();
+  return { proof };
+};
+
+/** Need ids the user has already fulfilled at any site (for hiding from the feed). */
+Store.prototype.myFulfilledNeedIds = function (personId) {
+  return fulfilledNeedIds(this.s.fulfilments, personId || this.s.profile.id || 'me');
 };
 
 export const store = new Store();
