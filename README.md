@@ -4,7 +4,9 @@ A real-life social operating system built around five layered signals. The Spect
 augments in-person noticing — it does not replace it. Social proximity is shown as
 buckets (Nearby / Adjacent / SameZone / Passing / Hidden), never as exact locations.
 
-Open `index.html` in any modern browser, or visit the GitHub Pages deployment.
+**Live: https://irf97.github.io/The-Spectrum-/**
+
+Open `index.html` in any modern browser, or use the live deployment above.
 
 ## The five layers
 
